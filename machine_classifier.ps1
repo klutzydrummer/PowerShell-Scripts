@@ -1,3 +1,9 @@
+$Registry = $True
+$caseNumber = "xxxxxxxxxxxxxxxx"
+$ParentFolder = "MicrosoftSupport"
+$RegRoot = "HKLM:\Software\"
+$RootFolder = $env:APPDATA
+
 <#
 .Description
 Check-TeamsInstalled checks if the new Teams app is installed.
@@ -118,6 +124,140 @@ function RunExecutableAndGetErrorCode($executablePath) {
 
 #>
 function Uninstall-NewTeams {
+    #############################################################Log File Creation ##############################################################
+    $LogFilePath = Join-Path $env:ALLUSERSPROFILE -ChildPath "Test\TestLogs\New_MSTeams-Uninstaller_en-US"
+    $LogFile = Join-Path -Path $LogFilePath -ChildPath "New_MSTeams_PS-Script.log"
+    If (!(Test-Path $LogFilePath)) {
+        New-Item -Path $LogFilePath -ItemType Directory -Force | Out-Null
+    }
+    Function Log {
+        [CmdletBinding()]
+        Param (
+            [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+            $Message,
+            $Level = "INFO",
+            $Component = ""
+            )
+        PROCESS {
+            # Populate the variables to log
+            $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
+            $Thread = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+            $Message = $Message -replace "`r`n", "`n" # Replace Windows-style line endings with Unix-style
+            $Message = $Message -replace "`n$", "" # Remove trailing newline if present
+            $Message = $Message -replace "`n", "`r`n" # Convert Unix-style line endings to Windows-style
+            $Message = $Message.Replace("""", """""""") # Escape quotes
+            $Message = $Message.Replace("[", "`[") # Escape square brackets
+            $Message = $Message.Replace("]", "`]") # Escape square brackets
+            $Message = $Message.Replace("<", "`<") # Escape angle brackets
+            $Message = $Message.Replace(">", "`>") # Escape angle brackets
+            $Message = $Message.Replace("`t", "    ") # Replace tabs with 4 spaces
+            
+            # Create the log entry
+            $LogEntry = "$Timestamp  $Thread  $Level  $Component  $Message"
+            Write-Output $LogEntry | Out-File -FilePath $LogFile -Encoding "Default" -Append
+        }
+    } # End of Create-LogEntry function
+
+    # Write a header to the log file
+    $Line = "******************************************************************************"
+    Log -Message $Line -Level "INFO" -Component "Script Execution"
+    $Line = "* $(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")  Script Execution started."
+    Log -Message $Line -Level "INFO" -Component "Script Execution"
+    $Line = "******************************************************************************"
+    Log -Message $Line -Level "INFO" -Component "Script Execution"
+
+    #############################################################End of Log function##############################################################
+    function ExitWithError {
+        param (
+            [string]$errorMessage
+            )
+            
+            Log -Message "Script execution failed. Error: $errorMessage" -Level "ERROR"
+            Log -Message $Line -Level "INFO" -Component "Script Execution"
+            Log -Message "* $(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff") The script execution is complete with errors." -Level "INFO" -Component "Script Execution"
+            Log -Message $Line -Level "INFO" -Component "Script Execution"
+            return $False
+        }
+        function Cleanup-Leftovers {
+        
+        $Regeditpaths = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Office\Teams"
+        Log -Message "Removing left-over Registries" -Component "Information"
+        
+        Foreach ($reg in $Regeditpaths) {
+            If (Test-path $reg) {
+                Log -Message "$reg exist, proceeding with purging" -Component "Cleanup"
+                Remove-Item -Path $reg -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+        
+        $BaseRegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData"
+        $UserSIDs = Get-ChildItem -Path $BaseRegistryPath | Where-Object { $_.PSChildName -like "S-1-5-21*" }
+        
+        foreach ($UserSID in $UserSIDs) {
+            $ProductsPath = Join-Path $UserSID.PSPath "Products"
+            $ProductKeys = Get-ChildItem -Path $ProductsPath | Where-Object { $_.PSChildName -match "^[A-F0-9]+$" }
+            
+            foreach ($ProductKey in $ProductKeys) {
+                $InstallPropertiesRegistryPath = Join-Path $ProductsPath ($ProductKey.PSChildName + "\InstallProperties")
+                
+                if (Test-Path -Path $InstallPropertiesRegistryPath) {
+                    $productInfo = Get-ItemProperty -Path $InstallPropertiesRegistryPath -ErrorAction SilentlyContinue
+                    
+                    # Check if the product info exists and if the InstallSource matches the MS Teams path
+                    if ($productInfo -and $productInfo.InstallSource -like 'C:\Program Files\WindowsApps\MSTeams*') {
+                        Remove-Item -Path $InstallPropertiesRegistryPath -Force -Recurse -ErrorAction SilentlyContinue
+                        Log -Message "$InstallPropertiesRegistryPath exists and proceeding with purging" -Component "Cleanup"
+                    }
+                }
+            }
+        }
+        
+    }
+    if (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Office\Teams -Name "maglevInstallationSource" -ErrorAction SilentlyContinue) 
+    {
+        Remove-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Office\Teams -Name "maglevInstallationSource" -ErrorAction SilentlyContinue
+        Log -Message " The registey Key maglevInstallationSource Deleted : Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Office\Teams" -Component "Cleanup"
+    }
+
+    $WindowsApps = Join-Path $env:ProgramFiles -ChildPath "WindowsApps"
+    $FinalLogLines = {
+        $Line = "******************************************************************************"
+        Log -Message $Line -Level "INFO" -Component "Script Execution"
+        $Line = "* $(Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff")  The script execution is complete."
+        Log -Message $Line -Level "INFO" -Component "Script Execution"
+        $Line = "******************************************************************************"
+        Log -Message $Line -Level "INFO" -Component "Script Execution"
+    }
+    
+    if ($WindowsApps) {
+        Log -Message "The WindowsApps folder found" -Level "INFO"
+        $TeamsFolder = Get-ChildItem -Path $WindowsApps -Filter "MSTeams*"
+        if ($TeamsFolder) {
+            Log -Message "MSTeams Folder: $TeamsFolder found at $WindowsApps. Running PowerShell command to uninstall MS Teams" -Level "INFO"
+            Get-AppxPackage msteams -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 40
+            Cleanup-Leftovers
+            Invoke-Command $FinalLogLines
+            $UninstallSuccess = $True
+            $UninstallExitDescription = "Teams Uninstalled Successfully."
+        } else {
+            $errorMessage = "MSTeams Folder: $TeamsFolder not found at $WindowsApps. Exiting the script" 
+            Log -Message $errorMessage -Level "ERROR"
+            ExitWithError $errorMessage
+            Invoke-Command $FinalLogLines
+            $UninstallSuccess = $False
+            $UninstallExitDescription = $errorMessage
+        }
+    } else {
+        Invoke-Command $FinalLogLines
+        $UninstallSuccess = $False
+        $UninstallExitDescription = "WindowsApps folder not found at $WindowsApps"
+    }
+    $UninstallationResults = New-Object -TypeName PSObject -Property @{
+        "UninstallSuccess" = $UninstallSuccess
+        "UninstallExitDescription" = $UninstallExitDescription
+    }
+    return $UninstallSuccess, $UninstallationResults
 }
 
 <#
@@ -155,7 +295,7 @@ function Save-OperationResults {
         [string] $Name,
         [switch] $Registry = $False
     )
-    $OutputValue = $OperationResults | ConvertTo-Json -Depth 25
+    $OutputValue = $OperationResults | ConvertTo-Json -Depth 25 -Compress
     if ($registry) {
         $keyExists = Test-Path -Path $Path;
         if ($keyExists) {
@@ -168,10 +308,6 @@ function Save-OperationResults {
         $OutputValue | Out-File -FilePath $(Join-Path -Path $Path -ChildPath $Name);
     }
 }
-
-# $Registry = $False
-$Registry = $True
-$caseNumber = "0000000000000000"
 
 # Define the download code
 $downloadFile = {
@@ -190,9 +326,6 @@ $downloadFile = {
 
 # Start downloading the Teams Installer
 Start-Job -ScriptBlock $downloadFile -ArgumentList "https://go.microsoft.com/fwlink/?linkid=2243204&clcid=0x409", $(Join-Path -Path $env:Temp -ChildPath "teamsbootstrapper.exe") -Name download_teams
-Dispatch-MachineInfo
-
-$ParentFolder = "MicrosoftSupport"
 
 $classificationName = "case_$($caseNumber)_label"
 $infoName = "case_$($caseNumber)_info"
@@ -202,7 +335,6 @@ $GatheredDataName = "MachineData"
 $CompletionFlagName = "ClassificationComplete"
 
 if ($Registry) {
-    $RegRoot = "HKLM:\Software\"
     $DataStorage = Join-Path -Path $RegRoot -ChildPath $ParentFolder
     if (!(Test-Path -Path $DataStorage)) {
         New-Item -Path $RegRoot -Name $ParentFolder –Force
@@ -214,7 +346,7 @@ if ($Registry) {
     $GatheredDataPath = $DataStorage
     $CompletionFlagPath = $DataStorage
 } else {
-    $DataStorage = Join-Path -Path $env:APPDATA -ChildPath $ParentFolder
+    $DataStorage = Join-Path -Path $RootFolder -ChildPath $ParentFolder
     if (!(Test-Path -Path $DataStorage)) {
         New-Item -Path $DataStorage -ItemType Directory
     }
@@ -247,8 +379,6 @@ if (($isTeamsInstalled -eq $True) -and  ($isTeamsAccessible -eq $True)) {
 if (($isTeamsInstalled -eq $True) -and ($isTeamsAccessible -eq $False)) {
     $uninstallSuccess, $UninstallationResults = Uninstall-NewTeams
     Save-OperationResults -OperationResults $UninstallationResults -Path $UninstallationResultsPath -Name $UninstallationResultsName -Registry $Registry
-    $GatheredData = Get-MachineInfo
-    Save-OperationResults -OperationResults $GatheredData -Path $GatheredDataPath -Name $GatheredDataName -Registry $Registry
     if ($uninstallSuccess -eq $True) {
         $installSuccess, $InstallationResults = Install-NewTeams
         Save-OperationResults -OperationResults $InstallationResults -Path $InstallationResultsPath -Name $InstallationResultsName -Registry $Registry
@@ -281,6 +411,9 @@ if (($isTeamsInstalled -eq $False) -and ($isTeamsAccessible -eq $False)) {
         Save-OperationResults -OperationResults $Classification -Path $classificationPath -Name $classificationName -Registry $Registry
     }
 }
+# Moved Dispatch-MachineInfo to the end in case of failed uninstall or install, as the event viewer messages wouldn't be captured if I ran this earlier.
+Dispatch-MachineInfo
+$GatheredData = Get-MachineInfo
+Save-OperationResults -OperationResults $GatheredData -Path $GatheredDataPath -Name $GatheredDataName -Registry $Registry
 $CompletionFlag = New-Object -TypeName PSObject -Property @{"CompletedClassification" = $True}
 Save-OperationResults -OperationResults $CompletionFlag -Path $CompletionFlagPath -Name $CompletionFlagName -Registry $Registry
-
