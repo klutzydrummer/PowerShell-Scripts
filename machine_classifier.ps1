@@ -1,4 +1,4 @@
-$Registry = $True
+$Registry = $False
 $caseNumber = "xxxxxxxxxxxxxxxx"
 $ParentFolder = "MicrosoftSupport"
 $RegRoot = "HKLM:\Software\"
@@ -42,7 +42,7 @@ function Dispatch-MachineInfo {
     
     $ApplicationLogsScriptblock = {return Get-EventLog -LogName Application -EntryType Error -Newest 20 -Message *Teams*}
     
-    $SystemLogsScriptblock = {return Get-EventLog -LogName Application -EntryType Error -Newest 20 -Message *Teams*}
+    $SystemLogsScriptblock = {return Get-EventLog -LogName System -EntryType Error -Newest 20 -Message *Teams*}
     
     Start-Job -ScriptBlock $MachineInfoScriptblock -Name MachineInfoScriptblock
     Start-Job -ScriptBlock $ApplicationLogsScriptblock -Name ApplicationLogsScriptblock
@@ -57,6 +57,12 @@ function Get-MachineInfo {
     $MachineInfo = Receive-Job -Name MachineInfoScriptblock -Wait
     $ApplicationLogs = Receive-Job -Name ApplicationLogsScriptblock -Wait
     $SystemLogs = Receive-Job -Name SystemLogsScriptblock -Wait
+    $batch = Get-Job -Name MachineInfoScriptblock
+    $batch | Remove-Job
+    $batch = Get-Job -Name ApplicationLogsScriptblock
+    $batch | Remove-Job
+    $batch = Get-Job -Name SystemLogsScriptblock
+    $batch | Remove-Job
     $GatheredData = New-Object -TypeName PSObject -Property @{
         "MachineInfo" = $MachineInfo
         "ApplicationLogs" = $ApplicationLogs
@@ -346,7 +352,11 @@ if ($Registry) {
     $GatheredDataPath = $DataStorage
     $CompletionFlagPath = $DataStorage
 } else {
-    $DataStorage = Join-Path -Path $RootFolder -ChildPath $ParentFolder
+    $DataStorageParent = Join-Path -Path $RootFolder -ChildPath $ParentFolder
+    if (!(Test-Path -Path $DataStorageParent)) {
+        New-Item -Path $DataStorageParent -ItemType Directory
+    }
+    $DataStorage = Join-Path -Path $DataStorageParent -ChildPath "information_$env:COMPUTERNAME"
     if (!(Test-Path -Path $DataStorage)) {
         New-Item -Path $DataStorage -ItemType Directory
     }
@@ -417,3 +427,6 @@ $GatheredData = Get-MachineInfo
 Save-OperationResults -OperationResults $GatheredData -Path $GatheredDataPath -Name $GatheredDataName -Registry $Registry
 $CompletionFlag = New-Object -TypeName PSObject -Property @{"CompletedClassification" = $True}
 Save-OperationResults -OperationResults $CompletionFlag -Path $CompletionFlagPath -Name $CompletionFlagName -Registry $Registry
+if(!($Registry)) {
+    Compress-Archive -Path $DataStorage -DestinationPath "$DataStorage.zip" -Force
+}
