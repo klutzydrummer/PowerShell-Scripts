@@ -84,6 +84,25 @@ function Handle-KeyDown {
     }
 }
 
+# Handle paste events to preserve multiline text
+# Handle paste events to preserve multiline text and sanitize newlines
+function Handle-Paste {
+    param (
+        [object]$sender,
+        [System.Windows.Forms.KeyEventArgs]$e
+    )
+
+    if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::V) {
+        $clipboardText = [System.Windows.Forms.Clipboard]::GetText([System.Windows.Forms.TextDataFormat]::Text)
+        $sanitizedText = $clipboardText -replace "(?<!`r)`n", "`r`n"
+        $selectionStart = $sender.SelectionStart
+        $sender.Text = $sender.Text.Substring(0, $selectionStart) + $sanitizedText + $sender.Text.Substring($selectionStart + $sender.SelectionLength)
+        $sender.SelectionStart = $selectionStart + $sanitizedText.Length
+        $e.SuppressKeyPress = $true
+    }
+}
+
+
 # Create a TableLayoutPanel for better control over resizing
 $tableLayoutPanel = New-Object System.Windows.Forms.TableLayoutPanel
 $tableLayoutPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
@@ -129,6 +148,10 @@ $tableLayoutPanel.Controls.Add($caseContactLabel, 0, 1)
 $caseContactTextBox = New-Object System.Windows.Forms.TextBox
 $caseContactTextBox.Dock = [System.Windows.Forms.DockStyle]::Fill
 $caseContactTextBox.add_KeyDown({ Handle-KeyDown $caseContactTextBox $_ })
+$caseContactTextBox.add_KeyDown({ Handle-Paste $caseContactTextBox $_ })
+$caseContactTextBox.add_TextChanged({
+    $caseContactTextBox.Text = $caseContactTextBox.Text
+})
 $tableLayoutPanel.Controls.Add($caseContactTextBox, 1, 1)
 
 # Case Status Label
@@ -173,6 +196,10 @@ $problemDescriptionTextArea = New-Object System.Windows.Forms.TextBox
 $problemDescriptionTextArea.Multiline = $true
 $problemDescriptionTextArea.Dock = [System.Windows.Forms.DockStyle]::Fill
 $problemDescriptionTextArea.add_KeyDown({ Handle-KeyDown $problemDescriptionTextArea $_ })
+$problemDescriptionTextArea.add_KeyDown({ Handle-Paste $problemDescriptionTextArea $_ })
+$problemDescriptionTextArea.add_TextChanged({
+    $problemDescriptionTextArea.Text = $problemDescriptionTextArea.Text
+})
 $tableLayoutPanel.Controls.Add($problemDescriptionTextArea, 1, 3)
 
 # Next Action Label
@@ -187,6 +214,10 @@ $nextActionTextArea = New-Object System.Windows.Forms.TextBox
 $nextActionTextArea.Multiline = $true
 $nextActionTextArea.Dock = [System.Windows.Forms.DockStyle]::Fill
 $nextActionTextArea.add_KeyDown({ Handle-KeyDown $nextActionTextArea $_ })
+$nextActionTextArea.add_KeyDown({ Handle-Paste $nextActionTextArea $_ })
+$nextActionTextArea.add_TextChanged({
+    $nextActionTextArea.Text = $nextActionTextArea.Text
+})
 $tableLayoutPanel.Controls.Add($nextActionTextArea, 1, 4)
 
 # Template Label
@@ -309,6 +340,10 @@ $importButton.Add_Click({
     $importTextArea.Multiline = $true
     $importTextArea.Dock = [System.Windows.Forms.DockStyle]::Fill
     $importTextArea.add_KeyDown({ Handle-KeyDown $importTextArea $_ })
+    $importTextArea.add_KeyDown({ Handle-Paste $importTextArea $_ })
+    $importTextArea.add_TextChanged({
+        $importTextArea.Text = $importTextArea.Text
+    })
     $importTableLayoutPanel.Controls.Add($importTextArea, 0, 1)
     
     $importButtonPanel = New-Object System.Windows.Forms.FlowLayoutPanel
