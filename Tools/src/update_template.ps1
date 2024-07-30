@@ -259,7 +259,7 @@ $templateTextArea = Create-Control -type "TextBox" -text "" -isMultiline $true -
 $templateTextArea.ScrollBars = [System.Windows.Forms.ScrollBars]::Vertical
 
 $alwaysOnTopCheckbox = Create-Control -type "CheckBox" -text "Always on top"
-$alwaysOnTopCheckbox.add_KeyDown({
+$alwaysOnTopCheckbox.Add_Click({
     $form.TopMost = $alwaysOnTopCheckbox.Checked
 })
 
