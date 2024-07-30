@@ -94,9 +94,9 @@ $tableLayoutPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle(
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
-$tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
-$tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
-$tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 60)))
+$tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 40)))
+$tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 40)))
+$tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 20)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
@@ -131,26 +131,12 @@ $caseContactTextBox.Dock = [System.Windows.Forms.DockStyle]::Fill
 $caseContactTextBox.add_KeyDown({ Handle-KeyDown $caseContactTextBox $_ })
 $tableLayoutPanel.Controls.Add($caseContactTextBox, 1, 1)
 
-# Problem Description Label
-$problemDescriptionLabel = New-Object System.Windows.Forms.Label
-$problemDescriptionLabel.Text = "Problem Description:"
-$problemDescriptionLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
-$problemDescriptionLabel.Anchor = [System.Windows.Forms.AnchorStyles]::Left
-$tableLayoutPanel.Controls.Add($problemDescriptionLabel, 0, 2)
-
-# Problem Description TextArea
-$problemDescriptionTextArea = New-Object System.Windows.Forms.TextBox
-$problemDescriptionTextArea.Multiline = $true
-$problemDescriptionTextArea.Dock = [System.Windows.Forms.DockStyle]::Fill
-$problemDescriptionTextArea.add_KeyDown({ Handle-KeyDown $problemDescriptionTextArea $_ })
-$tableLayoutPanel.Controls.Add($problemDescriptionTextArea, 1, 2)
-
 # Case Status Label
 $caseStatusLabel = New-Object System.Windows.Forms.Label
 $caseStatusLabel.Text = "Case Status:"
 $caseStatusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
 $caseStatusLabel.Anchor = [System.Windows.Forms.AnchorStyles]::Left
-$tableLayoutPanel.Controls.Add($caseStatusLabel, 0, 3)
+$tableLayoutPanel.Controls.Add($caseStatusLabel, 0, 2)
 
 # Available Case Status
 $availableCaseStatus = @(    
@@ -170,10 +156,24 @@ $defaultCaseStatusIndex = [Array]::IndexOf($availableCaseStatus, $defaultCaseSta
 $caseStatusComboBox = New-Object System.Windows.Forms.ComboBox
 $caseStatusComboBox.Dock = [System.Windows.Forms.DockStyle]::Fill
 $caseStatusComboBox.Items.AddRange($availableCaseStatus)
-$tableLayoutPanel.Controls.Add($caseStatusComboBox, 1, 3)
+$tableLayoutPanel.Controls.Add($caseStatusComboBox, 1, 2)
 
 # Prefill Case Status with "Troubleshooting"
 $caseStatusComboBox.SelectedIndex = $defaultCaseStatusIndex
+
+# Problem Description Label
+$problemDescriptionLabel = New-Object System.Windows.Forms.Label
+$problemDescriptionLabel.Text = "Problem Description:"
+$problemDescriptionLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$problemDescriptionLabel.Anchor = [System.Windows.Forms.AnchorStyles]::Left
+$tableLayoutPanel.Controls.Add($problemDescriptionLabel, 0, 3)
+
+# Problem Description TextArea
+$problemDescriptionTextArea = New-Object System.Windows.Forms.TextBox
+$problemDescriptionTextArea.Multiline = $true
+$problemDescriptionTextArea.Dock = [System.Windows.Forms.DockStyle]::Fill
+$problemDescriptionTextArea.add_KeyDown({ Handle-KeyDown $problemDescriptionTextArea $_ })
+$tableLayoutPanel.Controls.Add($problemDescriptionTextArea, 1, 3)
 
 # Next Action Label
 $nextActionLabel = New-Object System.Windows.Forms.Label
