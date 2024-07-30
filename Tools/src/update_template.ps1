@@ -288,7 +288,7 @@ $generateButton.Add_Click({
         nextActionTextArea = $nextActionTextArea.Text
     } | ConvertTo-Json -Depth 10 -Compress
     $b64encoded = Compress-And-Base64Encode -InputString $jsonOutput
-    $outputText = $outputText + "`r`n<span style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded</span>`r`n"
+    $outputText = $outputText + "`r`n<span style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded  `r`n:End Compressed Base64Encoded JSON</span>"
     $templateTextArea.Text = $outputText
 })
 $buttonPanel.Controls.Add($generateButton)
