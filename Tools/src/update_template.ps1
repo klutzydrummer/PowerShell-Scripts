@@ -99,36 +99,40 @@ function Handle-KeyDown {
         [System.Windows.Forms.KeyEventArgs]$e
     )
 
-    if ($e.Control) {
-        switch ($e.KeyCode) {
-            [System.Windows.Forms.Keys]::A {
-                # Select all text in the control
-                $sender.SelectAll()
-                $e.SuppressKeyPress = $true
-            }
-            [System.Windows.Forms.Keys]::Back {
-                # Logic for Ctrl + Backspace to delete the last word
-                $start = $sender.SelectionStart
-                $length = $sender.SelectionLength
-                if ($start -gt 0 -and $length -eq 0) {
-                    $words = $sender.Text.Substring(0, $start).Split()
-                    if ($words.Length -gt 0) {
-                        $lastWord = $words[$words.Length - 1]
-                        $sender.Text = $sender.Text.Remove($start - $lastWord.Length, $lastWord.Length)
-                        $sender.SelectionStart = $start - $lastWord.Length
-                    }
+    # Switch statement to handle different key combinations
+    switch ($true) {
+        # Handle Ctrl+A (Select All)
+        ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+            $sender.SelectAll()
+            $e.SuppressKeyPress = $true
+            break
+        }
+
+        # Handle Ctrl+Back (Delete previous word)
+        ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::Back) {
+            $start = $sender.SelectionStart
+            $length = $sender.SelectionLength
+            if ($start -gt 0 -and $length -eq 0) {
+                $words = $sender.Text.Substring(0, $start).Split()
+                if ($words.Length -gt 0) {
+                    $lastWord = $words[$words.Length - 1]
+                    $sender.Text = $sender.Text.Remove($start - $lastWord.Length, $lastWord.Length)
+                    $sender.SelectionStart = $start - $lastWord.Length
                 }
-                $e.SuppressKeyPress = $true
             }
-            [System.Windows.Forms.Keys]::V {
-                # Logic for Ctrl + V (Paste) to sanitize newlines
-                $clipboardText = [System.Windows.Forms.Clipboard]::GetText([System.Windows.Forms.TextDataFormat]::Text)
-                $sanitizedText = $clipboardText -replace "(?<!`r)`n", "`r`n"
-                $selectionStart = $sender.SelectionStart
-                $sender.Text = $sender.Text.Substring(0, $selectionStart) + $sanitizedText + $sender.Text.Substring($selectionStart + $sender.SelectionLength)
-                $sender.SelectionStart = $selectionStart + $sanitizedText.Length
-                $e.SuppressKeyPress = $true
-            }
+            $e.SuppressKeyPress = $true
+            break
+        }
+
+        # Handle Ctrl+V (Paste with sanitized newlines)
+        ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::V) {
+            $clipboardText = [System.Windows.Forms.Clipboard]::GetText([System.Windows.Forms.TextDataFormat]::Text)
+            $sanitizedText = $clipboardText -replace "(?<!`r)`n", "`r`n"
+            $selectionStart = $sender.SelectionStart
+            $sender.Text = $sender.Text.Substring(0, $selectionStart) + $sanitizedText + $sender.Text.Substring($selectionStart + $sender.SelectionLength)
+            $sender.SelectionStart = $selectionStart + $sanitizedText.Length
+            $e.SuppressKeyPress = $true
+            break
         }
     }
 }
@@ -152,8 +156,8 @@ function Create-Control {
         [string]$type,
         [string]$text,
         [bool]$isMultiline = $false,
-        [bool]$isReadOnly = $false,
-        [object]$eventHandler = $null
+        [bool]$isReadOnly = $false
+        # Removed the event handler parameter
     )
 
     switch ($type) {
@@ -168,32 +172,20 @@ function Create-Control {
             $control.Dock = [System.Windows.Forms.DockStyle]::Fill
             $control.Multiline = $isMultiline
             $control.ReadOnly = $isReadOnly
-            if ($eventHandler) {
-                $control.add_KeyDown($eventHandler)
-            }
         }
         "Button" {
             $control = New-Object System.Windows.Forms.Button
             $control.Text = $text
             $control.AutoSize = $true
-            if ($eventHandler) {
-                $control.Add_Click($eventHandler)
-            }
         }
         "ComboBox" {
             $control = New-Object System.Windows.Forms.ComboBox
             $control.Dock = [System.Windows.Forms.DockStyle]::Fill
-            if ($eventHandler) {
-                $control.Add_SelectedIndexChanged($eventHandler)
-            }
         }
         "CheckBox" {
             $control = New-Object System.Windows.Forms.CheckBox
             $control.Text = $text
             $control.Anchor = [System.Windows.Forms.AnchorStyles]::Left
-            if ($eventHandler) {
-                $control.add_CheckedChanged($eventHandler)
-            }
         }
     }
 
@@ -234,7 +226,8 @@ $updateDateTextBox.Text = (Get-Date).ToString($DateFormat)
 $updateDateTextBox.add_KeyDown({ Handle-KeyDown $updateDateTextBox $_ })
 
 $caseContactLabel = Create-Control -type "Label" -text "Case Contact:"
-$caseContactTextBox = Create-Control -type "TextBox" -text "" -eventHandler { Handle-KeyDown $caseContactTextBox $_ }
+$caseContactTextBox = Create-Control -type "TextBox" -text ""
+$caseContactTextBox.add_KeyDown({ Handle-KeyDown $caseContactTextBox $_ })
 
 $caseStatusLabel = Create-Control -type "Label" -text "Case Status:"
 
@@ -254,44 +247,48 @@ $caseStatusComboBox.Items.AddRange($availableCaseStatus)
 $caseStatusComboBox.SelectedIndex = $defaultCaseStatusIndex
 
 $problemDescriptionLabel = Create-Control -type "Label" -text "Problem Description:"
-$problemDescriptionTextArea = Create-Control -type "TextBox" -text "" -isMultiline $true -eventHandler { Handle-KeyDown $problemDescriptionTextArea $_ }
+$problemDescriptionTextArea = Create-Control -type "TextBox" -text "" -isMultiline $true
+$problemDescriptionTextArea.add_KeyDown({ Handle-KeyDown $problemDescriptionTextArea $_ })
 
 $nextActionLabel = Create-Control -type "Label" -text "Next Action:"
-$nextActionTextArea = Create-Control -type "TextBox" -text "" -isMultiline $true -eventHandler { Handle-KeyDown $nextActionTextArea $_ }
+$nextActionTextArea = Create-Control -type "TextBox" -text "" -isMultiline $true
+$nextActionTextArea.add_KeyDown({ Handle-KeyDown $nextActionTextArea $_ })
 
 $templateLabel = Create-Control -type "Label" -text "Template:"
 $templateTextArea = Create-Control -type "TextBox" -text "" -isMultiline $true -isReadOnly $true
 $templateTextArea.ScrollBars = [System.Windows.Forms.ScrollBars]::Vertical
 
-$alwaysOnTopCheckbox = Create-Control -type "CheckBox" -text "Always on top" -eventHandler {
+$alwaysOnTopCheckbox = Create-Control -type "CheckBox" -text "Always on top"
+$alwaysOnTopCheckbox.add_KeyDown({
     $form.TopMost = $alwaysOnTopCheckbox.Checked
-}
+})
 
 $buttonPanel = New-Object System.Windows.Forms.FlowLayoutPanel
 $buttonPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
 $buttonPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::LeftToRight
 
-$generateButton = Create-Control -type "Button" -text "Generate" -eventHandler {
+$generateButton = Create-Control -type "Button" -text "Generate"
+$generateButton.add_KeyDown({
     # Validate inputs before proceeding
     if (-not (Validate-Inputs)) { return }
 
     $updateDateTextBox.Text = (Get-Date).ToString($DateFormat)
     $outputText = @"
-Update Date: $($updateDateTextBox.Text)
+Update Date: $($updateDateTextBox.Text)  
 ---
 
-Case Contact: $($caseContactTextBox.Text)
-
----
-
-Case Status: $($caseStatusComboBox.Text)
-Problem Description: $($problemDescriptionTextArea.Text)
+Case Contact: $($caseContactTextBox.Text)  
 
 ---
 
-## Next Action
+Case Status: $($caseStatusComboBox.Text)  
+Problem Description: $($problemDescriptionTextArea.Text)  
 
-$($nextActionTextArea.Text)
+---
+
+## Next Action  
+
+$($nextActionTextArea.Text)  
 "@
 
     $jsonOutput = [PSCustomObject]@{
@@ -305,22 +302,25 @@ $($nextActionTextArea.Text)
     $b64encoded = Compress-And-Base64Encode -InputString $jsonOutput
     $outputText = $outputText + "`r`n<span style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded  `r`n:End Compressed Base64Encoded JSON</span>"
     $templateTextArea.Text = $outputText
-}
+})
 
-$clearButton = Create-Control -type "Button" -text "Clear" -eventHandler {
+$clearButton = Create-Control -type "Button" -text "Clear"
+$clearButton.add_KeyDown({
     $caseContactTextBox.Clear()
     $problemDescriptionTextArea.Clear()
     $nextActionTextArea.Clear()
     $templateTextArea.Clear()
     $caseStatusComboBox.SelectedIndex = $defaultCaseStatusIndex
-}
+})
 
-$copyButton = Create-Control -type "Button" -text "Copy" -eventHandler {
+$copyButton = Create-Control -type "Button" -text "Copy"
+$copyButton.add_KeyDown({
     [System.Windows.Forms.Clipboard]::SetText($templateTextArea.Text)
     [System.Windows.Forms.MessageBox]::Show("Template copied to clipboard!")
-}
+})
 
-$importButton = Create-Control -type "Button" -text "Import" -eventHandler {
+$importButton = Create-Control -type "Button" -text "Import"
+$importButton.Add_Click({
     # Create the import form
     $importForm = New-Object System.Windows.Forms.Form
     $importForm.Text = "Import Base64"
@@ -345,7 +345,8 @@ $importButton = Create-Control -type "Button" -text "Import" -eventHandler {
     $importButtonPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
     $importButtonPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::LeftToRight
 
-    $importButtonInner = Create-Control -type "Button" -text "Import" -eventHandler {
+    $importButtonInner = Create-Control -type "Button" -text "Import"
+    $importButtonInner.Add_Click({
         $importTextInput = $importTextArea.Text
 
         # Regex patterns
@@ -396,11 +397,12 @@ $importButton = Create-Control -type "Button" -text "Import" -eventHandler {
             # Handle any unexpected errors
             Handle-Error -message "An unexpected error occurred" -exception $_
         }
-    }
+    })
 
-    $cancelButtonInner = Create-Control -type "Button" -text "Cancel" -eventHandler {
+    $cancelButtonInner = Create-Control -type "Button" -text "Cancel"
+    $cancelButtonInner.Add_Click({
         $importForm.Close()
-    }
+    })
 
     $importButtonPanel.Controls.Add($importButtonInner)
     $importButtonPanel.Controls.Add($cancelButtonInner)
@@ -410,7 +412,7 @@ $importButton = Create-Control -type "Button" -text "Import" -eventHandler {
     $importTableLayoutPanel.Controls.Add($importButtonPanel, 0, 2)
 
     $importForm.ShowDialog()
-}
+})
 
 # Add controls to the form
 $tableLayoutPanel.Controls.Add($updateDateLabel, 0, 0)
