@@ -8,6 +8,14 @@ $form.Size = New-Object System.Drawing.Size(600, 700)
 $form.StartPosition = "CenterScreen"
 
 # Define functions
+function Show-ErrorMessage {
+    param (
+        [string]$message
+    )
+    # Create the message box
+    [void][System.Windows.Forms.MessageBox]::Show($message, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+}
+
 function Compress-And-Base64Encode {
     param (
         [Parameter(Mandatory = $true)]
@@ -84,7 +92,6 @@ function Handle-KeyDown {
     }
 }
 
-# Handle paste events to preserve multiline text
 # Handle paste events to preserve multiline text and sanitize newlines
 function Handle-Paste {
     param (
@@ -281,7 +288,7 @@ $generateButton.Add_Click({
         nextActionTextArea = $nextActionTextArea.Text
     } | ConvertTo-Json -Depth 10 -Compress
     $b64encoded = Compress-And-Base64Encode -InputString $jsonOutput
-    $outputText = $outputText + "`r`n<span style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded</span>"
+    $outputText = $outputText + "`r`n<span style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded</span>`r`n"
     $templateTextArea.Text = $outputText
 })
 $buttonPanel.Controls.Add($generateButton)
@@ -355,17 +362,57 @@ $importButton.Add_Click({
     $importButtonInner.Text = "Import"
     $importButtonInner.AutoSize = $true
     $importButtonInner.Add_Click({
-        $encodedString = $importTextArea.Text
-        $decodedString = Decode-And-DecompressBase64 -EncodedString $encodedString
-        $jsonObject = $decodedString | ConvertFrom-Json
+        $importTextInput = $importTextArea.Text
+
+        # Regex patterns
+        $caseNotesBase64Pattern = 'Compressed Base64Encoded JSON:\s*(H4sIA[^\s<]+)'
+        $plainBase64Pattern = '^[a-zA-Z0-9\+/]*={0,3}$'
         
-        $updateDateTextBox.Text = $jsonObject.updateDateTextBox
-        $caseContactTextBox.Text = $jsonObject.caseContactTextBox
-        $caseStatusComboBox.Text = $jsonObject.caseStatusComboBox
-        $problemDescriptionTextArea.Text = $jsonObject.problemDescriptionTextArea
-        $nextActionTextArea.Text = $jsonObject.nextActionTextArea
+        # Initialize variables
+        $sanitizedEncodedString = ""
+        $isBase64 = $false
         
-        $importForm.Close()
+        try {
+            # Perform the regex match for embedded Base64 string
+            if ($importTextInput -match $caseNotesBase64Pattern) {
+                # Extract the Base64 encoded substring
+                $sanitizedEncodedString = $matches[1]
+                $isBase64 = $true
+            } elseif ($importTextInput -match $plainBase64Pattern) {
+                # Check if the input is already a plain Base64 encoded string
+                try {
+                    [Convert]::FromBase64String($importTextInput) | Out-Null
+                    $sanitizedEncodedString = $importTextInput
+                    $isBase64 = $true
+                } catch {
+                    $isBase64 = $false
+                }
+            } else {
+                $isBase64 = $false
+            }
+        
+            if ($isBase64) {
+                # Decode and decompress the Base64 encoded string
+                $decodedString = Decode-And-DecompressBase64 -EncodedString $sanitizedEncodedString
+                $jsonObject = $decodedString | ConvertFrom-Json
+        
+                # Update the form fields with the JSON data
+                <# $updateDateTextBox.Text = $jsonObject.updateDateTextBox #>
+                $caseContactTextBox.Text = $jsonObject.caseContactTextBox
+                $caseStatusComboBox.Text = $jsonObject.caseStatusComboBox
+                $problemDescriptionTextArea.Text = $jsonObject.problemDescriptionTextArea
+                $nextActionTextArea.Text = $jsonObject.nextActionTextArea
+        
+                # Close the import form
+                $importForm.Close()
+            } else {
+                # Pop up error message stating that no valid data was found
+                Show-ErrorMessage -message "No valid Base64 encoded data was found."
+            }
+        } catch {
+            # Handle any unexpected errors
+            Show-ErrorMessage -message "An unexpected error occurred: $_"
+        }
     })
     $importButtonPanel.Controls.Add($importButtonInner)
     
