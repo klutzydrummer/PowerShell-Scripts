@@ -8,6 +8,40 @@ $DefaultCaseStatus = "Troubleshooting"
 $ErrorMessageInvalidBase64 = "No valid Base64 encoded data was found."
 
 # Define functions
+function Get-NewlineType {
+    # Create a temporary file
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    
+    try {
+        # Write a string with a newline to the file
+        "Test`nLine" | Out-File -FilePath $tempFile -Encoding ascii
+
+        # Read the file contents as bytes
+        $bytes = [System.IO.File]::ReadAllBytes($tempFile)
+
+        # Determine the newline type based on the byte values
+        if ($bytes.Length -ge 2 -and $bytes[-2] -eq 13 -and $bytes[-1] -eq 10) {
+            Write-Host "This system uses: CRLF (Carriage Return + Line Feed)"
+            $targetNewline = "`r`n"
+            $searchRegex = "(?<!`r)`n"
+        } elseif ($bytes[-1] -eq 10) {
+            Write-Host "This system uses: LF (Line Feed)"
+            $targetNewline = "`n"
+            $searchRegex = "`r`n"
+        } else {
+            Write-Host "This system uses: Unknown newline format"
+            $targetNewline = "`n"
+            $searchRegex = "`r`n"
+        }
+        return @($targetNewline, $searchRegex)
+    } finally {
+        # Clean up the temporary file
+        Remove-Item -Path $tempFile -Force
+    }
+}
+
+# Automatically set the proper newline characters based on system
+$targetLineFeed, $lineFeedRegEx = Get-NewlineType
 
 # Function to display error messages in a message box
 function Show-ErrorMessage {
@@ -127,7 +161,7 @@ function Handle-KeyDown {
         # Handle Ctrl+V (Paste with sanitized newlines)
         ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::V) {
             $clipboardText = [System.Windows.Forms.Clipboard]::GetText([System.Windows.Forms.TextDataFormat]::Text)
-            $sanitizedText = $clipboardText -replace "(?<!`r)`n", "`r`n"
+            $sanitizedText = $clipboardText -replace $lineFeedRegEx, $targetLineFeed
             $selectionStart = $sender.SelectionStart
             $sender.Text = $sender.Text.Substring(0, $selectionStart) + $sanitizedText + $sender.Text.Substring($selectionStart + $sender.SelectionLength)
             $sender.SelectionStart = $selectionStart + $sanitizedText.Length
@@ -268,7 +302,7 @@ $buttonPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
 $buttonPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::LeftToRight
 
 $generateButton = Create-Control -type "Button" -text "Generate"
-$generateButton.add_KeyDown({
+$generateButton.Add_Click({
     # Validate inputs before proceeding
     if (-not (Validate-Inputs)) { return }
 
@@ -290,7 +324,7 @@ Problem Description: $($problemDescriptionTextArea.Text)
 
 $($nextActionTextArea.Text)  
 "@
-
+    $outputText = $outputText -replace $lineFeedRegEx, $targetLineFeed
     $jsonOutput = [PSCustomObject]@{
         updateDateTextBox = $updateDateTextBox.Text
         caseContactTextBox = $caseContactTextBox.Text
@@ -305,7 +339,7 @@ $($nextActionTextArea.Text)
 })
 
 $clearButton = Create-Control -type "Button" -text "Clear"
-$clearButton.add_KeyDown({
+$clearButton.Add_Click({
     $caseContactTextBox.Clear()
     $problemDescriptionTextArea.Clear()
     $nextActionTextArea.Clear()
@@ -314,7 +348,7 @@ $clearButton.add_KeyDown({
 })
 
 $copyButton = Create-Control -type "Button" -text "Copy"
-$copyButton.add_KeyDown({
+$copyButton.Add_Click({
     [System.Windows.Forms.Clipboard]::SetText($templateTextArea.Text)
     [System.Windows.Forms.MessageBox]::Show("Template copied to clipboard!")
 })
