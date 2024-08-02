@@ -303,26 +303,30 @@ $buttonPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::LeftToRight
 
 $generateButton = Create-Control -type "Button" -text "Generate"
 $generateButton.Add_Click({
+    $updateDateTextBox.Text = (Get-Date).ToString($DateFormat)
     # Validate inputs before proceeding
     if (-not (Validate-Inputs)) { return }
-
-    $updateDateTextBox.Text = (Get-Date).ToString($DateFormat)
+    $updateDateTextBoxText = ($updateDateTextBox.Text -split "`r`n" | ForEach-Object {$_ + "  "}) -join "`r`n"
+    $caseContactTextBoxText = ($caseContactTextBox.Text -split "`r`n" | ForEach-Object {$_ + "  "}) -join "`r`n"
+    $caseStatusComboBoxText = ($caseStatusComboBox.Text -split "`r`n" | ForEach-Object {$_ + "  "}) -join "`r`n"
+    $problemDescriptionTextAreaText = ($problemDescriptionTextArea.Text -split "`r`n" | ForEach-Object {$_ + "  "}) -join "`r`n"
+    $nextActionTextAreaText = ($nextActionTextArea.Text -split "`r`n" | ForEach-Object {$_ + "  "}) -join "`r`n"
     $outputText = @"
-Update Date: $($updateDateTextBox.Text)  
+Update Date: $($updateDateTextBoxText)  
 ---
 
-Case Contact: $($caseContactTextBox.Text)  
+Case Contact: $($caseContactTextBoxText)  
 
 ---
 
-Case Status: $($caseStatusComboBox.Text)  
-Problem Description: $($problemDescriptionTextArea.Text)  
+Case Status: $($caseStatusComboBoxText)  
+Problem Description: $($problemDescriptionTextAreaText)  
 
 ---
 
 ## Next Action  
 
-$($nextActionTextArea.Text)  
+$($nextActionTextAreaText)  
 "@
     $outputText = $outputText -replace $lineFeedRegEx, $targetLineFeed
     $jsonOutput = [PSCustomObject]@{
@@ -340,6 +344,7 @@ $($nextActionTextArea.Text)
 
 $clearButton = Create-Control -type "Button" -text "Clear"
 $clearButton.Add_Click({
+    $updateDateTextBox.Text = (Get-Date).ToString($DateFormat)
     $caseContactTextBox.Clear()
     $problemDescriptionTextArea.Clear()
     $nextActionTextArea.Clear()
