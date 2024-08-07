@@ -32,14 +32,14 @@ javascript:(function () {
             objectStorage[row_count] = [];
         }
     }
-    var output = ["Case_Number,Case_Title,Updates_this_Week,Called_this_Week"];
+    var output = ["Case_Number,Case_Title,Updates_this_Week,Called_this_Week,ok_no_call,closed"];
     var finalObject = {};
     for (var row of Object.keys(objectStorage)) {
         if (objectStorage[row].length == 0) {
             continue;
         }
         finalObject[row] = objectStorage[row].slice(2, 4);
-        finalObject[row].push(...[0, 'FALSE']);
+        finalObject[row].push(...[0, 'FALSE', 'FALSE', 'FALSE']);
         for (let i = 0; i < finalObject[row].length; i++) {
             if (/^\d{16}$/.test(finalObject[row][i])) {
                 continue;
