@@ -161,7 +161,7 @@ if __name__ == "__main__":
     final_output = seperator.join(output)
     
     for format in formats:
-        final_output_path = Path(output_path+format)
+        final_output_path = output_path.with_suffix(format)
         print(final_output_path)
         try:
             with open(final_output_path, 'w', encoding='utf-8', errors='ignore') as f:
