@@ -3,6 +3,8 @@ import re
 import pandas as pd
 import json
 from datetime import datetime
+from branutils import load_config
+from pop_up_windows import file_folder_picker
 
 def process_comments(comments: str) -> str:
     comments = str(comments)
@@ -21,29 +23,41 @@ def process_comments(comments: str) -> str:
 
     return json.dumps(comment_list)
 
-manager_notes_path = Path(r"C:\Users\v-brhouser\OneDrive - Microsoft\Brandon_Susan_Notes_08_02_2024.csv")
-column_types = {
-    "Case Number": str,
-    "Case Title": str,
-    "SuHood Comments": str
-}
-match manager_notes_path.suffix:
-    case ".csv":
-        df = pd.read_csv(manager_notes_path, dtype=column_types)
-    case ".xlsx":
-        df = pd.read_excel(manager_notes_path, dtype=column_types)
-    case _:
-        raise ValueError("Invalid file type.")
-print(df.columns)
-case_dict = {
-    str(row["Case Number"]).rstrip(): {
-        "Case Title": row["Case Title"],
-        "Manager Notes": process_comments(row["SuHood Comments"])
+if __name__ == "__main__":
+    config = load_config()
+    
+    manager_notes_parent_path = Path(config.get("manager_notes_path"))
+    manager_notes_path = file_folder_picker(
+        title = "Select File or Folder",
+        mode = "file",
+        action = "open",
+        file_types = [("Comma Separated Values file", "*.csv"), ("All files", "*.*")],
+        initial_dir = manager_notes_parent_path,
+        default_extension = None
+    )
+    manager_notes_path = Path(manager_notes_path)
+    column_types = {
+        "Case Number": str,
+        "Case Title": str,
+        "SuHood Comments": str
     }
-    for _, row in df.iterrows() if str(row["Case Number"]) != "nan"
-}
+    match manager_notes_path.suffix:
+        case ".csv":
+            df = pd.read_csv(manager_notes_path, dtype=column_types)
+        case ".xlsx":
+            df = pd.read_excel(manager_notes_path, dtype=column_types)
+        case _:
+            raise ValueError("Invalid file type.")
+    print(df.columns)
+    case_dict = {
+        str(row["Case Number"]).rstrip(): {
+            "Case Title": row["Case Title"],
+            "Manager Notes": process_comments(row["SuHood Comments"])
+        }
+        for _, row in df.iterrows() if str(row["Case Number"]) != "nan"
+    }
 
-json_out = json.dumps(case_dict, indent=4)
-json_out_path = Path(r"C:\Users\v-brhouser\OneDrive - Microsoft\Brandon_Susan_Notes_08_02_2024.json")
-with open(json_out_path, 'w') as f:
-    f.write(json_out)
+    json_out = json.dumps(case_dict, indent=4)
+    json_out_path = manager_notes_path.with_suffix('.json')
+    with open(json_out_path, 'w', encoding="utf-8", errors="ignore") as f:
+        f.write(json_out)

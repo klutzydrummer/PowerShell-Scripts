@@ -1,17 +1,19 @@
 import os
 from pathlib import Path
 from pop_up_windows import custom_popup_input
-from branutils import open_explorer
+from branutils import load_config, open_explorer
 from datetime import datetime, timedelta
 
-my_name = "Brandon"
-my_team = "Microsoft Teams CSS Support"
-template = "close_case_script_included.md"
 
-template_base_path = r"C:\Users\v-brhouser\OneDrive - Microsoft\Notes\email_templates"
-template_base_path = Path(template_base_path)
-template_path = template_base_path / template
 if __name__ == "__main__":
+    config = load_config()
+    my_name = config.get("my_name")
+    my_team = config.get("my_team")
+    template = "close_case_script_included.md"
+
+    template_base_path = config.get("email_templates_path")
+    template_base_path = Path(template_base_path)
+    template_path = template_base_path / template
 
     survey_link = "https://admin.microsoft.com/adminportal/home#/support/feedback/{case_number}"
     signature_name = my_name

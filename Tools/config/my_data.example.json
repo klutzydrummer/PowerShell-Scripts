@@ -1,0 +1,10 @@
+{
+    "my_name": "Doe",
+    "my_team": "Awesome Team",
+    "all_cases_url": "https://dfmsite.com/<view of cases>",
+    "notes_path": "C:/temp/Notes",
+    "old_notes_path": "C:/temp/Notes/old_cases",
+    "email_notes_path": "C:/temp/Notes/emails",
+    "manager_notes_path": "C:/temp/Notes/manager_notes",
+    "email_templates_path": "C:/temp/Notes/email_templates"
+}

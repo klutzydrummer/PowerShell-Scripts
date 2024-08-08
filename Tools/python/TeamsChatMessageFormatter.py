@@ -3,11 +3,15 @@ from pathlib import Path
 from collections import deque
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from branutils import open_explorer
+from branutils import open_explorer, load_config
 from pop_up_windows import popup_with_copy, custom_popup_input
+import pathlib
+script_directory = Path(__file__).parent.resolve()
+
 
 if __name__ == "__main__":
-    TeamsChatMessageExtractor_js_path = Path(r"C:\Users\v-brhouser\OneDrive - Microsoft\Tools\javascript\TeamsChatMessageExtractor.js")
+    config = load_config()
+    TeamsChatMessageExtractor_js_path = Path(script_directory.parent / "javascript/TeamsChatMessageExtractor.js")
     with open(TeamsChatMessageExtractor_js_path, 'r', encoding="utf-8", errors="ignore") as f:
         TeamsChatMessageExtractor_js = f.read()
     js_copy_message = "Click 'Copy' to copy the required JavaScript.\nOpen up the Teams Chat thread you want to copy.\nHit F12 to open the developer console. (Must be enabled)\nPaste into the console and hit enter.\nThe chat messages should be copied to your clipboard in JSON format.\nClose this window to proceed to the next step, where that JSON will be used."
@@ -22,28 +26,9 @@ if __name__ == "__main__":
     chat_messages = json.loads(json_string)
     quoted = True
     recent_first = False
-    output_path = r"C:\Users\v-brhouser\OneDrive - Microsoft\Notes\teams_chats\prettychat-markdown" if "output_path" not in globals() else globals()["output_path"]
+    notes_path = Path(config.get("notes_path", "C:/temp"))
+    output_path = notes_path / "teams_chats/prettychat-markdown"
     formats = [".md", ".txt"]
-    # json_string = r"C:\Users\v-brhouser\OneDrive - Microsoft\Notes\teams_chats\teamschat.json" if "json_string" not in globals() else globals()["json_string"]
-    # linefeed = "\n"
-    # try:
-    #     json_path = Path(json_string)
-    #     json_path.exists()
-        
-    # except:
-    #     json_path = None
-        
-    # # Load the JSON content
-    # if json_path is not None:
-    #     with open(json_path, 'r', encoding='utf-8', errors='ignore') as f:
-    #         json_string = f.read()
-    #     chat_messages = json.loads(json_string)
-    # elif isinstance(json_string, str):
-    #     chat_messages = json.loads(json_string)
-    # elif isinstance(json_string, list):
-    #     chat_messages = json_string
-    # else:
-    #     raise ValueError(f"Unexpected type for json_string, not str or list. Found type: {type(json_string)}")
 
     def clean_trailing_newlines(in_string: str) -> str:
         in_string = in_string.replace("\r\n", "\n")
@@ -76,13 +61,18 @@ if __name__ == "__main__":
         converted = utc_datetime.astimezone(tz)
         return converted
 
+    def replace_references(input_string, reference_list):
+        for reference in reference_list:
+            input_string = input_string.replace('<REFERENCE>', reference, 1)
+        return input_string
+
     def process_message(message: dict, header=True, footer=True) -> str:
         if type(message) is not dict:
             raise ValueError(f"Unexpected type for message, not dict. Found type: {type(message)}")
         time = message.get("time", None)
         author = message.get("author", None)
         message_body = message.get("message", None)
-        referencedMessage = message.get("referencedMessage", None)
+        referencedMessages = message.get("referencedMessages", None)
         reactions = message.get("reactions", None)
         isEdited = message.get("isEdited", None)
         output_header = ""
@@ -97,31 +87,36 @@ if __name__ == "__main__":
             output_header += f"{author} - {time}  "
         elif author is not None and time is None:
             output_header += f"{author}  "
-        if referencedMessage is not None:
-            referenceAuthor = referencedMessage.get("referenceAuthor", {"referenceAuthor": None})
-            referenceTime = referencedMessage.get("referenceTime", {"referenceTime": None})
-            referenceBody = referencedMessage.get("referenceBody", {"referenceBody": None})
-            if message_body is not None:
-                message_body_lines = message_body.split("\n")
-                message_body_lines = [line for line in message_body_lines if line not in referencedMessage.values()]
-                message_body = "\n".join(message_body_lines)
-            referenceBody = referenceBody.replace("\r", "")
-            referenceBody = clean_leading_newlines(referenceBody)
-            referenceBody = clean_trailing_newlines(referenceBody)
-            referenceBody = "\n".join([f">{line}  " for line in referenceBody.replace("\r\n", "\n").split("\n")])
-            if referenceTime is not None:
-                parsed_datetime = datetime.strptime(referenceTime, "%m/%d/%Y %I:%M %p")
-                cst_datetime = convert_utc_to_tz(parsed_datetime, cst_timezone)
-                referenceTime = cst_datetime.strftime("%m/%d/%Y %I:%M %p")
-            reference_header = f">{referenceAuthor} - {referenceTime}  "
-            reference_body = referenceBody
-            output_body += "\n" + reference_header + "\n"
-            output_body += referenceBody + "\n" + "\n"
+        if referencedMessages is not None:
+            reference_list = []
+            for referencedMessage in referencedMessages:
+                reference_string = ""
+                referenceAuthor = referencedMessage.get("referenceAuthor", {"referenceAuthor": None})
+                referenceTime = referencedMessage.get("referenceTime", {"referenceTime": None})
+                referenceBody = referencedMessage.get("referenceBody", {"referenceBody": None})
+                if message_body is not None:
+                    message_body_lines = message_body.split("\n")
+                    message_body_lines = [line for line in message_body_lines if line not in referencedMessage.values()]
+                    message_body = "\n".join(message_body_lines)
+                referenceBody = referenceBody.replace("\r", "")
+                referenceBody = clean_leading_newlines(referenceBody)
+                referenceBody = clean_trailing_newlines(referenceBody)
+                referenceBody = "\n".join([f">{line}  " for line in referenceBody.replace("\r\n", "\n").split("\n")])
+                if referenceTime is not None:
+                    parsed_datetime = datetime.strptime(referenceTime, "%m/%d/%Y %I:%M %p")
+                    cst_datetime = convert_utc_to_tz(parsed_datetime, cst_timezone)
+                    referenceTime = cst_datetime.strftime("%m/%d/%Y %I:%M %p")
+                reference_header = f">{referenceAuthor} - {referenceTime}  "
+                reference_string += "\n" + reference_header + "\n"
+                reference_string += referenceBody + "\n" + "\n"
+                reference_list.append(reference_string)
         if message_body is not None:
             message_body = clean_leading_newlines(message_body)
             message_body = clean_trailing_newlines(message_body)
             message_body_lines = message_body.split("\n")
             message_body = "\n".join([f"{line}  " for line in message_body_lines])
+            if referencedMessages is not None:
+                message_body = replace_references(message_body, reference_list)
             output_body += message_body
         if reactions is not None:
             reactions = ", ".join([f"{reaction_name}: {reaction_count}" for reaction_name, reaction_count in reactions.items()]) + "  "
@@ -161,10 +156,10 @@ if __name__ == "__main__":
         output.append(converted)
     if recent_first:
         output = reversed(output)
-    #seperator = f"{linefeed}{linefeed}---{linefeed}{linefeed}"
+    
     seperator = f"\n\n--\n\n"
     final_output = seperator.join(output)
-    # print(final_output)
+    
     for format in formats:
         final_output_path = Path(output_path+format)
         print(final_output_path)
