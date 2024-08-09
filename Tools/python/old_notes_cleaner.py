@@ -4,14 +4,13 @@ import shutil
 from collections import deque
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from branutils import open_explorer, load_config
+from branutils import open_explorer, load_config, get_case_data_from_csv
 from pop_up_windows import popup_with_copy, custom_popup_input
 import pathlib
 from pprint import pprint
-import csv
 import re
-from io import StringIO
 from time import sleep
+from typing import List, Dict
 
 def move_paths_to_directory(paths, destination):
     dest_path = Path(destination)
@@ -27,6 +26,8 @@ def move_paths_to_directory(paths, destination):
                 print(f"Error moving {source_path}: {e}")
         else:
             print(f"Source path does not exist: {source_path}")
+
+
 
 if __name__ == "__main__":
     script_directory = pathlib.Path(__file__).parent.resolve()
@@ -76,14 +77,8 @@ Close this window to proceed to the next step, where that CSV will be used.""")
     )
     if confirmed is not True:
         exit()
-    csv_string = result.get("data").encode(encoding="utf-8", errors="ignore").decode(encoding="utf-8", errors="ignore")
-
-    csv_file = StringIO(csv_string)
-    csv_reader = csv.DictReader(csv_file)
-    active_case_numbers = []
-    for row in csv_reader:
-        active_case_numbers.append(row['Case_Number'].rstrip("'"))
-    
+    case_data = get_case_data_from_csv(result.get("data"))
+    active_case_numbers = [case.get("number") for case in case_data]
     folder_name_pattern = re.compile(r'^\d{16}$')
     case_note_folders = [path for path in notes_path.iterdir() if path.is_dir() and folder_name_pattern.match(path.name)]
     exist_case_notes = [path.name for path in case_note_folders]
