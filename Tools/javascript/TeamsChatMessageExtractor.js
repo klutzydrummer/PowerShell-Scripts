@@ -457,35 +457,126 @@ var addMenu = true;
     
         return button;
     };
-  
-  var items = [
-    {text: 'Copy Teams Messages with images', onClick: () => {
-            TeamsChatMessageExtractor(true);
-            showModal("Chat Messages, copied to clipboard as JSON.")
-        }
-    },
-    {text: 'Copy Teams Messages without images', onClick: () => {
-            TeamsChatMessageExtractor(false);
-            showModal("Chat Messages, copied to clipboard as JSON.")
-        }
-    },
-  ];
-  if (addMenu == true) {
     var custom_id = "my_modal_trigger";
     var custom_id_css_selector_dropdown = '[data-custom-dropdown="'+custom_id+'"]';
     var custom_id_css_selector_modal = '[data-custom-modal="'+custom_id+'"]';
-    var dropdown_exist = document.querySelector(custom_id_css_selector_dropdown);
-    var modal_exist = document.querySelector(custom_id_css_selector_modal);
-    if (dropdown_exist !== null) {
-        dropdown_exist.parentElement.removeChild(dropdown_exist);
+    var get_nav_bar = (()=>{return document.querySelector('[data-tid="app-layout-area--header"]')});
+    var nav_bar = get_nav_bar()
+    function getMenu() {
+        return {
+            "dropdown": document.querySelector(custom_id_css_selector_dropdown),
+            "modal": document.querySelector(custom_id_css_selector_modal)
+        };
     };
-    if (modal_exist !== null) {
-        modal_exist.parentElement.removeChild(modal_exist);
+
+    function deleteMenu(modal_elements) {
+        if (modal_elements.dropdown !== null) {
+            modal_elements.dropdown.parentElement.removeChild(modal_elements.dropdown);
+        };
+        if (modal_elements.modal !== null) {
+            modal_elements.modal.parentElement.removeChild(modal_elements.modal);
+        };
     };
-    var dropdown = setupDropdown(items, custom_id);
-    document.querySelector('[data-shortcut-context="chat-messages-list"]').childNodes[0].prepend(dropdown);
-  };
-  if (runDirect == true) {
-    return TeamsChatMessageExtractor(base64_flag)
-  };
+
+    function addMenu_func() {
+        var menu_check = getMenu();
+        if (menu_check.modal == null || menu_check.dropdown == null) deleteMenu(menu_check);
+        var dropdown = setupDropdown(items, custom_id);
+        get_nav_bar().childNodes[0].prepend(dropdown);
+    };
+  
+    /* Check if the observerRegistry already exists in the global scope */;
+    if (!window.observerRegistry) {
+        window.observerRegistry = new Map();
+    };
+
+    function createMutationObserver(element, callback, observerId) {
+        /* Check if the parameters are valid */;
+        if (!(element instanceof Element) || typeof callback !== 'function' || typeof observerId !== 'string') {
+        throw new Error('Invalid parameters');
+        }
+
+        /* Check if an observer with this ID already exists */;
+        if (window.observerRegistry.has(observerId)) {
+        console.warn(`Observer with ID '${observerId}' already exists. Removing the existing one.`);
+        removeObserver(observerId);
+        }
+
+        /* Create a new MutationObserver */;
+        const observer = new MutationObserver((mutations) => {
+        callback(mutations);
+        });
+
+        /* Configure the observer */;
+        const config = {
+        attributes: true,
+        childList: false,
+        subtree: false,
+        characterData: false
+        };
+
+        /* Start observing the target element */;
+        observer.observe(element, config);
+
+        /* Store the observer in the registry */;
+        window.observerRegistry.set(observerId, { observer, element });
+
+        console.log(`Observer '${observerId}' created and started.`);
+
+        /* Return the observer ID for reference */;
+        return observerId;
+    };
+
+    function removeObserver(observerId) {
+        if (window.observerRegistry.has(observerId)) {
+        const { observer } = window.observerRegistry.get(observerId);
+        observer.disconnect();
+        window.observerRegistry.delete(observerId);
+        console.log(`Observer '${observerId}' removed.`);
+        return true;
+        }
+        console.warn(`Observer '${observerId}' not found.`);
+        return false;
+    };
+
+    function getObserver(observerId) {
+        return window.observerRegistry.get(observerId);
+    };
+
+    /* Expose functions to the global scope */;
+    window.createMutationObserver = createMutationObserver;
+    window.removeObserver = removeObserver;
+    window.getObserver = getObserver;
+
+    var items = [
+        {text: 'Copy Teams Messages with images', onClick: () => {
+                TeamsChatMessageExtractor(true);
+                showModal("Chat Messages, copied to clipboard as JSON.");
+            }
+        },
+        {text: 'Copy Teams Messages without images', onClick: () => {
+                TeamsChatMessageExtractor(false);
+                showModal("Chat Messages, copied to clipboard as JSON.");
+            }
+        },
+    ];
+    if (addMenu == true) {
+        addMenu_func();
+        createMutationObserver(
+            document.body,
+            ((monitor_element)=>{
+                return (()=>{
+                    var nav_bar = get_nav_bar();
+                    if (monitor_element != nav_bar) {
+                        monitor_element = nav_bar;
+                        addMenu_func();
+                    };
+                })
+            })(nav_bar),
+            'my_observer'
+        );
+    };
+    if (runDirect == true) {
+        return TeamsChatMessageExtractor(base64_flag)
+    };
 })(runDirect, base64_flag, addMenu)
