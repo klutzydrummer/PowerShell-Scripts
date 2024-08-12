@@ -7,16 +7,111 @@ var specifiedFormat = 'json';
         window._my_custom_methods = {};
     };
 
-    window._my_custom_methods.TeamsChatMessageExtractor = ((base64_flag=true)=>{
-        function toJSONFriendlyFormat(date) {
-            var output;
-            if (typeof date != null) {
-                output = date.toISOString();
-            } else {
-                output = "";
-            };
-            return output;
+    window._my_custom_methods.toJSONFriendlyFormat = function toJSONFriendlyFormat(date) {
+        var output;
+        if (typeof date != null) {
+            output = date.toISOString();
+        } else {
+            output = "";
         };
+        return output;
+    };
+
+    function domToMarkdown(node, indentLevel = 0, banList = []) {
+        let banListCheck = (typeof node.getAttribute !== 'undefined') ? banList.map(object => {
+            let elementAttribute = node?.getAttribute(object.attribute);
+            return (elementAttribute == object.value && object.hasOwnProperty('replaceValue')) ? object.replaceValue : null;
+        }).filter(element => element !== null) : [];
+        if (banListCheck.length > 0) {
+            return banListCheck[0];
+        };
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent;
+        };
+    
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return '';
+        };
+    
+        let result = '';
+        const tagName = node.tagName.toLowerCase();
+        const isListItem = tagName === 'li';
+        const isUnorderedList = tagName === 'ul';
+        const isParagraph = tagName === 'p';
+    
+        if (isListItem) {
+            result += '  '.repeat(indentLevel) + '- ';
+        };
+    
+        if (isParagraph) {
+            /* For paragraphs, concatenate all child content without newlines */;
+            result = Array.from(node.childNodes)
+                .map(child => domToMarkdown(child, indentLevel, banList))
+                .join('')
+                .trim();
+            return '  '.repeat(indentLevel) + result + '\n';
+        }
+    
+        for (const child of node.childNodes) {
+            const childTag = child.nodeType === Node.ELEMENT_NODE ? child.tagName.toLowerCase() : null;
+            
+            if (child.nodeType === Node.TEXT_NODE || (child.nodeType === Node.ELEMENT_NODE && ['a', 'strong', 'em', 'code', 'span'].includes(childTag))) {
+                result += domToMarkdown(child, indentLevel, banList);
+            } else {
+                result += domToMarkdown(child, isUnorderedList ? indentLevel + 1 : indentLevel, banList);
+            };
+        };
+    
+        switch (tagName) {
+            case 'a':
+                return `[${node.textContent}](${node.getAttribute('href')})`;
+            case 'br':
+                return '\n' + '  '.repeat(indentLevel);
+            case 'div':
+                return result;
+            case 'li':
+                return result.trimEnd() + '\n';
+            case 'ul':
+                return result + (indentLevel > 0 ? '\n' : '');
+                case 'img':
+                    var itemtype = node.getAttribute("itemtype");
+                    var handle_id;
+                    var image_output;
+                    if (itemtype_mappings.hasOwnProperty(itemtype)) {
+                        handle_id = itemtype_mappings[itemtype];
+                    } else {
+                        handle_id = "default"
+                    };
+                    switch (handle_id) {
+                        case 'emoji':
+                            image_output = node.alt;
+                            break;
+                        case 'image':
+                            if (base64_flag == true) {
+                                var base64 = image_to_base64(node);
+                                image_output = "![image](" + String(base64) + ")";
+                            } else {
+                                image_output = "📷";
+                            };
+                            break;
+                        default:
+                            if (node.hasAttribute("alt")) {
+                                image_output = node.alt;
+                                break;
+                            };
+                            if (node.hasAttribute("src")) {
+                                image_output = node.src;
+                                break;
+                            };
+                            break;
+                    };
+                    return '  '.repeat(indentLevel) + image_output + '\n';
+                default:
+                return result;
+        };
+    };
+
+    window._my_custom_methods.TeamsChatMessageExtractor = ((base64_flag=true)=>{
         
         function parseDateTimeWithTimeZone(dateTimeString, timeZone = 'America/Chicago') {
             const date = new Date(dateTimeString);
@@ -95,7 +190,7 @@ var specifiedFormat = 'json';
             return output.join("\n");
         };
         
-        function TeamsAutoBackupSelector(element, cssSelector) {
+        window._my_custom_methods.TeamsAutoBackupSelector = function TeamsAutoBackupSelector(element, cssSelector) {
             let replace_mapper = ["ChatMessage", "ChatMyMessage"];
             var target = element.querySelector(cssSelector);
             if (target == null) {
@@ -104,113 +199,83 @@ var specifiedFormat = 'json';
             return target;
         };
         
-        function getDirectTextContent(element) {
-            return Array.from(element.childNodes)
-            .filter(node => node.nodeType === Node.TEXT_NODE)
-            .map(node => node.textContent.trim())
-            .join(' ');
-        };
+        window._my_custom_methods.domToHtml = function domToHtml(node, banList = []) {
+            /* Helper function to check if the node should be replaced or ignored */
+            const checkBanList = (node) => {
+                if (typeof node.getAttribute !== 'function') {
+                    return null;
+                }
         
-        function domToMarkdown(node, indentLevel = 0, banList = []) {
-            let banListCheck = (typeof node.getAttribute !== 'undefined') ? banList.map(object => {
-                let elementAttribute = node?.getAttribute(object.attribute);
-                return (elementAttribute == object.value && object.hasOwnProperty('replaceValue')) ? object.replaceValue : null;
-            }).filter(element => element !== null) : [];
-            if (banListCheck.length > 0) {
-                return banListCheck[0];
-            };
-            if (node.nodeType === Node.TEXT_NODE) {
-                return node.textContent;
+                for (const object of banList) {
+                    const attributeValue = node.getAttribute(object.attribute);
+                    if (attributeValue == object.value && object.hasOwnProperty('replaceValue')) {
+                        return object.replaceValue;
+                    }
+                }
+                return null;
             };
         
-            if (node.nodeType !== Node.ELEMENT_NODE) {
-                return '';
-            };
+            /* Function to recursively create and append elements */;
+            const createHtmlElement = (node) => {
+                /* Check if the node is in the banList and should be replaced */;
+                const banListCheck = checkBanList(node);
+                if (banListCheck !== null) {
+                    return banListCheck instanceof Node ? banListCheck.cloneNode(true) : document.createTextNode(String(banListCheck));
+                }
         
-            let result = '';
-            const tagName = node.tagName.toLowerCase();
-            const isListItem = tagName === 'li';
-            const isUnorderedList = tagName === 'ul';
-            const isParagraph = tagName === 'p';
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return document.createTextNode(node.textContent);
+                }
         
-            if (isListItem) {
-                result += '  '.repeat(indentLevel) + '- ';
-            };
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return document.createTextNode('');
+                }
         
-            if (isParagraph) {
-                /* For paragraphs, concatenate all child content without newlines */;
-                result = Array.from(node.childNodes)
-                    .map(child => domToMarkdown(child, indentLevel, banList))
-                    .join('')
-                    .trim();
-                return '  '.repeat(indentLevel) + result + '\n';
-            }
+                const newElement = document.createElement(node.tagName.toLowerCase());
         
-            for (const child of node.childNodes) {
-                const childTag = child.nodeType === Node.ELEMENT_NODE ? child.tagName.toLowerCase() : null;
-                
-                if (child.nodeType === Node.TEXT_NODE || (child.nodeType === Node.ELEMENT_NODE && ['a', 'strong', 'em', 'code', 'span'].includes(childTag))) {
-                    result += domToMarkdown(child, indentLevel, banList);
-                } else {
-                    result += domToMarkdown(child, isUnorderedList ? indentLevel + 1 : indentLevel, banList);
-                };
-            };
-        
-            switch (tagName) {
-                case 'a':
-                    return `[${node.textContent}](${node.getAttribute('href')})`;
-                case 'br':
-                    return '\n' + '  '.repeat(indentLevel);
-                case 'div':
-                    return result;
-                case 'li':
-                    return result.trimEnd() + '\n';
-                case 'ul':
-                    return result + (indentLevel > 0 ? '\n' : '');
+                /* Handle specific tags like 'a', 'img', etc. */
+                switch (newElement.tagName) {
+                    case 'a':
+                        newElement.href = node.getAttribute('href');
+                        break;
                     case 'img':
-                        var itemtype = node.getAttribute("itemtype");
-                        var handle_id;
-                        var image_output;
-                        if (itemtype_mappings.hasOwnProperty(itemtype)) {
-                            handle_id = itemtype_mappings[itemtype];
-                        } else {
-                            handle_id = "default"
-                        };
-                        switch (handle_id) {
-                            case 'emoji':
-                                image_output = node.alt;
-                                break;
-                            case 'image':
-                                if (base64_flag == true) {
-                                    var base64 = image_to_base64(node);
-                                    image_output = "![image](" + String(base64) + ")";
-                                } else {
-                                    image_output = "📷";
-                                };
-                                break;
-                            default:
-                                if (node.hasAttribute("alt")) {
-                                    image_output = node.alt;
-                                    break;
-                                };
-                                if (node.hasAttribute("src")) {
-                                    image_output = node.src;
-                                    break;
-                                };
-                                break;
-                        };
-                        return '  '.repeat(indentLevel) + image_output + '\n';
+                        if (node.hasAttribute('src')) {
+                            newElement.src = node.getAttribute('src');
+                        }
+                        if (node.hasAttribute('alt')) {
+                            newElement.alt = node.getAttribute('alt');
+                        }
+                        break;
                     default:
-                    return result;
+                        /* Copy over other attributes if necessary */
+                        for (const attr of node.attributes) {
+                            newElement.setAttribute(attr.name, attr.value);
+                        }
+                        break;
+                }
+        
+                /* Recursively append child nodes */
+                for (const child of node.childNodes) {
+                    const childElement = createHtmlElement(child);
+                    newElement.appendChild(childElement);
+                }
+        
+                return newElement;
             };
+        
+            /* Start with a div as the root element */
+            const rootElement = document.createElement('div');
+            rootElement.appendChild(createHtmlElement(node));
+        
+            return rootElement;
         };
         
-        function extractChatMessageDetails(chatElement) {
+        window._my_custom_methods.extractChatMessageDetails = function extractChatMessageDetails(chatElement) {
             let referenceAuthorToken = "<REFERENCE_AUTHOR>";
             let referenceTimeToken = "<REFERENCE_TIME>";
             let referenceBodyToken = "<REFERENCE_BODY>";
             let divider = chatElement.querySelector('[class^="fui-Divider"]');
-            let controlMessage = TeamsAutoBackupSelector(chatElement, '[data-tid="control-message-renderer"]');
+            let controlMessage = window._my_custom_methods.TeamsAutoBackupSelector(chatElement, '[data-tid="control-message-renderer"]');
             if (divider !== null) {
                 return null;
             };
@@ -230,7 +295,7 @@ var specifiedFormat = 'json';
                 }
             };
             let chatBodyElement = chatElement.querySelector('[data-tid="chat-pane-message"]').querySelector('div');
-            let chatTime = TeamsAutoBackupSelector(chatElement, '[class^="fui-ChatMessage__timestamp"]')?.dateTime;
+            let chatTime = window._my_custom_methods.TeamsAutoBackupSelector(chatElement, '[class^="fui-ChatMessage__timestamp"]')?.dateTime;
             let chatAuthor = chatElement?.querySelector('[data-tid="message-author-name"]')?.textContent || "Unknown Author";
             let referenceWrappers = chatElement?.querySelectorAll('[data-track-module-name="messageQuotedReply"]');
             var hasReference = false;
@@ -244,22 +309,25 @@ var specifiedFormat = 'json';
                     let referenceSpans = referenceWrapper.querySelectorAll('span');
                     if (referenceSpans.length >= 3) {
                         referenceAuthor = referenceSpans[0]?.textContent.trim();
-                        referenceTime = toJSONFriendlyFormat(parseDateTimeWithTimeZone(referenceSpans[1]?.textContent.trim()));
+                        referenceTime = window._my_custom_methods.toJSONFriendlyFormat(parseDateTimeWithTimeZone(referenceSpans[1]?.textContent.trim()));
                         referenceBody = referenceSpans[2]?.textContent.trim();
                     };
                     reference_info.push({referenceAuthor, referenceTime, referenceBody});
                 }
             };
             
+            var referenceReplacementValue = document.createElement('div');
+            referenceReplacementValue.setAttribute('custom-data-track-module-name', 'messageQuotedReply');
+            referenceReplacementValue.textContent = '<REFERENCE>';
+
             let banList = [
                 /*{ attribute: 'data-tid', value: 'url-preview' },
                 { attribute: 'aria-label', value: 'Reaction summary' },
                 { attribute: 'class', value: 'fui-ChatMessage__avatar' },*/
-                { attribute: 'data-track-module-name', value: 'messageQuotedReply', replaceValue: '<REFERENCE>' }
+                { 'attribute': 'data-track-module-name', 'value': 'messageQuotedReply', 'replaceValue': referenceReplacementValue }
             ];
-        
-            let chatBody = domToMarkdown(chatBodyElement, 0, banList);
-                
+
+            let chatBody = window._my_custom_methods.domToHtml(chatBodyElement, banList);
             
             /* var isEdited = false; */;
             
@@ -292,7 +360,8 @@ var specifiedFormat = 'json';
         
         var itemtype_mappings = {
             "http://schema.skype.com/Emoji": "emoji",
-            "http://schema.skype.com/AMSImage": "image"
+            "http://schema.skype.com/AMSImage": "image",
+            "http://schema.skype.com/Mention": "mention"
         }
         
         window._my_custom_methods.copyToClipboard = function copyToClipboard(text) {
@@ -313,27 +382,15 @@ var specifiedFormat = 'json';
         var chatElement = each;
         var banned_character_codes = [55357, 56897];
         var chatElementsArray = [...chatElements];
-        /* chatElementsArray = chatElementsArray.slice(chatElementsArray.length - 1, chatElementsArray.length) */;
-        var pre_output = chatElementsArray.map(item => extractChatMessageDetails(item)).filter(item => item !== null);
-        var json_string = JSON.stringify(pre_output).replace(/\\\\"/g, '\\"').replace(/\\\\/g, '\\\\');
-        var output = JSON.parse(json_string);
+        var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item)).filter(item => item !== null);
+        var output = pre_output; /* JSON.parse(json_string) */;
+        console.log(output);
         
-        var are_you_having_json_decode_error = false;
-        if (are_you_having_json_decode_error === true) {
-            var debug_char_map_output = [];
-            for (message of output) {
-                var debug_object = {sender: message.author, message_csv: unicode_char_mapper_csv(message.message)};
-                debug_char_map_output.push(debug_object);
-            };
-            console.log("Get char map csv of desired message by indexing against: debug_char_map_output\nExample, most recent message can be accessed as such: debug_char_map_output[debug_char_map_output.length - 1]");
-            var target_message = debug_char_map_output[debug_char_map_output.length - 1];
-            console.log(target_message);
-        };
         return output;
     });
 
     window._my_custom_methods.showModal = function showModal(message) {
-        /* Create modal container */;
+        /* Create modal container */
         const modal = document.createElement('div');
         modal.style.cssText = `
           position: fixed;
@@ -348,7 +405,7 @@ var specifiedFormat = 'json';
           z-index: 1000;
         `;
       
-        /* Create modal content */;
+        /* Create modal content */
         const modalContent = document.createElement('div');
         modalContent.style.cssText = `
           background-color: white;
@@ -357,11 +414,11 @@ var specifiedFormat = 'json';
           text-align: center;
         `;
       
-        /* Create message paragraph */;
+        /* Create message paragraph */
         const messageParagraph = document.createElement('p');
         messageParagraph.textContent = message;
       
-        /* Create OK button */;
+        /* Create OK button */
         const okButton = document.createElement('button');
         okButton.textContent = 'OK';
         okButton.style.cssText = `
@@ -370,19 +427,22 @@ var specifiedFormat = 'json';
           cursor: pointer;
         `;
       
-        /* Add click event listener to OK button */;
+        /* Add click event listener to OK button */
         okButton.addEventListener('click', () => {
           document.body.removeChild(modal);
         });
       
-        /* Assemble modal */;
+        /* Assemble modal */
         modalContent.appendChild(messageParagraph);
         modalContent.appendChild(okButton);
         modal.appendChild(modalContent);
       
-        /* Add modal to the DOM */;
+        /* Add modal to the DOM */
         document.body.appendChild(modal);
-    };
+    
+        /* Focus the OK button */
+        okButton.focus();
+    }
 
     window._my_custom_methods.showModalSettings = function showModalSettings(message, settings) {
         let modal = document.getElementById('my-modal-settings');
@@ -628,12 +688,12 @@ var specifiedFormat = 'json';
         `${messageData.author} - ${messageData.time}  \n` : 
         `${messageData.author}  \n`;
     
-        let body = messageData.message_body || '';
+        let body = (messageData.message_body.replace("\r\n", "\n") || '').split("\n").map(line => `${line}  `).join("\n");
     
         messageData.references.forEach(ref => {
         const refBody = ref.body.split('\n').map(line => `>${line}  `).join('\n');
         const refHeader = `>${ref.author} - ${ref.time}  `;
-        body = body.replace('<REFERENCE>', `\n${refHeader}\n${refBody}\n`);
+        body = body.replace('<REFERENCE>', `\n${refHeader}\n${refBody}`);
         });
     
         const reactions = messageData.reactions ? 
@@ -642,67 +702,133 @@ var specifiedFormat = 'json';
     
         const footer = `${reactions}  ${messageData.is_edited ? '\nEdited' : ''}`;
     
-        return `${header}\n${body}\n${footer}`.trim();
+        return `${header}${body}\n${footer}`.trim();
     }
         
     function formatHtml(messageData) {
-        const escapeHtml = (unsafe) => {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+        const removeAllAttributes = (element) => {
+            while (element.attributes.length > 0) {
+                element.removeAttribute(element.attributes[0].name);
+            }
+        };
+        const setNewAttributes = (element, attributes) => {
+            removeAllAttributes(element);
+            for (const [key, value] of Object.entries(attributes)) {
+                element.setAttribute(key, value);
+            }; 
+        }
+        function setNewAttributesAll(element, attributes, banList=[]) {
+            for (banListEntry of banList) {
+                if (!(element.hasAttribute(banListEntry.attribute) && element.getAttribute(banListEntry.attribute) === banListEntry.value)) {
+                    setNewAttributes(element, attributes);
+                }
+            }
+        
+            element.childNodes.forEach(child => {
+                if (child.nodeType === Node.ELEMENT_NODE) {
+                    setNewAttributesAll(child, attributes);
+                }
+            });
+        }
+        const createElement = (tag, className, content) => {
+            const element = document.createElement(tag);
+            if (className) element.className = className;
+            if (content !== undefined && content !== null) {
+                if (typeof content === 'string') {
+                    element.textContent = content;
+                } else if (content instanceof Node) {
+                    element.appendChild(content);
+                }
+            }
+            return element;
         };
     
-        const header = messageData.author && messageData.time ? 
-        `<b>${escapeHtml(messageData.author)}</b> - <i>${escapeHtml(messageData.time)}</i><br>` : 
-        `<b>${escapeHtml(messageData.author)}</b><br>`;
-    
-        let body = escapeHtml(messageData.message_body || '');
-    
-        messageData.references.forEach(ref => {
-        const refBody = ref.body.split('\n').map(line => `<span>${escapeHtml(line)}</span><br>`).join('');
-        const refHeader = `<b>${escapeHtml(ref.author)}</b> - <i>${escapeHtml(ref.time)}</i>`;
-        body = body.replace('<REFERENCE>', `<blockquote><br>${refHeader}<br>${refBody}<br></blockquote>`);
-        });
-    
-        const reactions = messageData.reactions ? 
-        Object.entries(messageData.reactions).map(([name, count]) => `${escapeHtml(name)}: ${count}`).join('<br>') : 
-        '';
-    
-        const footer = `${reactions}${messageData.is_edited ? '<br>Edited' : ''}`;
-    
-        return `<div>${header}${body}${footer}</div>`.trim();
-    };
+        const processMessageBody = (bodyElement, references) => {
+            const quoteElements = bodyElement.querySelectorAll('[custom-data-track-module-name="messageQuotedReply"]');
+            
+            quoteElements.forEach((quoteElement, index) => {
+                if (index < references.length) {
+                    const refElement = createReferenceElement(references[index]);
+                    quoteElement.replaceWith(refElement);
+                    setNewAttributes(refElement, {'class': 'message-body.quote'});
+                }
+            });
 
-    function generate_html(messages) {
-        return messages.map((messages)=>{return formatHtml(messages)});
-    };
-
-    function generate_markdown(messages) {
-        return messages.map((messages)=>{return formatMarkdown(messages)});
-    };
+            const mentionElements = bodyElement.querySelectorAll('[itemtype="http://schema.skype.com/Mention"]');
+            mentionElements.forEach((mentionElement, index) => {
+                if (index <= references.length) {
+                    const mentionParent = mentionElement.parentElement;
+                    mentionParent.replaceWith(mentionElement);
+                    setNewAttributes(mentionElement, {'class': 'message-body.mention'});
+                }
+            });
+            var banList = [
+                { 'attribute': 'class', 'value': 'message-body' },
+                { 'attribute': 'class', 'value': 'message-body.mention' },
+                { 'attribute': 'class', 'value': 'message-body.quote' }
+            ];
+            setNewAttributesAll(bodyElement, {'class': 'message-body'}, banList=banList);
+    
+            return bodyElement;
+        };
+    
+        const createReferenceElement = (ref) => {
+            const refElement = createElement('blockquote', 'message-reference');
+            const refHeader = createElement('div', 'reference-header', `${ref.author} - ${ref.time}`);
+            refElement.appendChild(refHeader);
+    
+            const refBody = createElement('div', 'reference-body');
+            ref.body.split('\n').forEach(line => {
+                const lineElement = createElement('div', 'reference-line', line);
+                refBody.appendChild(lineElement);
+            });
+            refElement.appendChild(refBody);
+    
+            return refElement;
+        };
+    
+        const header = createElement('div', 'message-header', `${messageData.author} - ${messageData.time}`);
+        const bodyElement = processMessageBody(messageData.message_body, messageData.references);
+    
+        const container = createElement('div', 'message-container');
+        container.appendChild(header);
+        container.appendChild(bodyElement);
+    
+        if (messageData.reactions) {
+            const reactionsContainer = createElement('div', 'message-reactions');
+            for (const [reaction, count] of Object.entries(messageData.reactions)) {
+                reactionsContainer.appendChild(createElement('span', null, `${reaction}: ${count}`));
+                reactionsContainer.appendChild(document.createElement('br'));
+            }
+            container.appendChild(reactionsContainer);
+        }
+    
+        if (messageData.is_edited) {
+            container.appendChild(createElement('div', 'message-edited', 'Edited'));
+        }
+    
+        return container.outerHTML;
+    }
 
     window._my_custom_methods.process_messages = function process_messages(messages) {
         var chosen_format;
         if (window._my_modal_settings.hasOwnProperty("Output Format")) {
             chosen_format = window._my_modal_settings["Output Format"];
         };
-        var preprocessed_messages = messages.map((message)=>{return processMessage(message)});
+        var preprocessed_messages = messages.map(message=>processMessage(message)); /* messages.map((message)=>{return processMessage(message)}) */;
         var postprocessed_messages;
         switch (chosen_format) {
             case 'json':
-                postprocessed_messages = JSON.stringify((window.hasOwnProperty("debugjsonstuff")) ? preprocessed_messages : messages);
+                postprocessed_messages = JSON.stringify(preprocessed_messages.map(message=>{message.message_body = domToMarkdown(message.message_body); return formatMarkdown(message)}));
                 break;
             case 'markdown':
                 var seperator = "\n\n---\n\n";
-                postprocessed_messages = generate_markdown(preprocessed_messages).join(seperator);
+                postprocessed_messages = preprocessed_messages.map(message=>{message.message_body = domToMarkdown(message.message_body); return formatMarkdown(message)}).join(seperator);
                 break;
             case 'html':
-                var seperator = "<br><br><hl><br><br>";
-                postprocessed_messages = generate_html(preprocessed_messages).join(seperator);
-                postprocessed_messages = "<html>\n<body>\n"+postprocessed_messages+"\n</body></html>";
+                var seperator = "\n\n<br><br><hr><br><br>\n\n";
+                postprocessed_messages = preprocessed_messages.map(message=>{return formatHtml(message)});
+                postprocessed_messages = "<html>\n<body>\n"+postprocessed_messages.join(seperator)+"\n</body></html>";
                 break;
             default:
                 throw new Error(`Specified format "${chosen_format}" invalid.`);
@@ -821,6 +947,7 @@ var specifiedFormat = 'json';
         {text: 'Copy Teams Messages without images', onClick: () => {
             try {
                 var extractedMessages = window._my_custom_methods.TeamsChatMessageExtractor(false);
+                console.log(extractedMessages);
                 var chosen_format = (window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : 'json'
                 window._my_custom_methods.process_messages(extractedMessages);
                 window._my_custom_methods.showModal(`Chat messages copied to clipboard as "${chosen_format}".`);
