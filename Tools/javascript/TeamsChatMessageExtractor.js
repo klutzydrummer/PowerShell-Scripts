@@ -6,6 +6,17 @@ var specifiedFormat = 'json';
     if (!window.hasOwnProperty('_my_custom_methods')) {
         window._my_custom_methods = {};
     };
+    if (!window.hasOwnProperty('_my_custom_data')) {
+        window._my_custom_data = {};
+    };
+    if (!window.hasOwnProperty("_my_custom_menu")) {
+        window._my_custom_menu = {};
+    };
+    window._my_custom_data.itemtype_mappings = {
+        "http://schema.skype.com/Emoji": "emoji",
+        "http://schema.skype.com/AMSImage": "image",
+        "http://schema.skype.com/Mention": "mention"
+    };
 
     window._my_custom_methods.toJSONFriendlyFormat = function toJSONFriendlyFormat(date) {
         var output;
@@ -15,6 +26,83 @@ var specifiedFormat = 'json';
             output = "";
         };
         return output;
+    };
+
+    function parseDateTimeWithTimeZone(dateTimeString, timeZone = 'America/Chicago') {
+        const date = new Date(dateTimeString);
+    
+        /* Convert to the target time zone by getting the offset */;
+        const localTime = date.getTime();
+        const localOffset = date.getTimezoneOffset() * 60000; /*Offset in milliseconds */;
+    
+        /* Calculate the offset for the specified time zone */;
+        const targetOffset = getOffsetForTimezone(timeZone, date);
+    
+        /* Adjust the time by the difference between local and target offsets */;
+        const targetTime = new Date(localTime + localOffset - targetOffset);
+        
+        return targetTime;
+    };
+    
+    function getOffsetForTimezone(timeZone, date) {
+        /* Convert to UTC */;
+        const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+    
+        /* Convert to the target time zone */;
+        const tzDate = new Date(date.toLocaleString('en-US', { timeZone }));
+    
+        /* Calculate the offset in milliseconds */;
+        const offset = utcDate.getTime() - tzDate.getTime();
+    
+        return offset;
+    }
+    
+    function image_to_base64(img_element) { 
+        const img = img_element;
+        if (!img) {
+        alert('Image not found');
+        return;
+        }
+    
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        return canvas.toDataURL('image/png');;
+    }
+    
+    function unicode_cleaner(in_string) {
+        var output = [];
+        for (let i = 0; i < in_string.length -1; i++) {
+            var plain_character = in_string.charAt(i);
+            var unicode_character = in_string.charCodeAt(i);
+            if (banned_character_codes.includes(unicode_character)) continue;
+            output.push(plain_character);
+            if (in_string.charCodeAt(i) == null) {
+                console.log("null character code detected: " + String(plain_character));
+            } else if (String(unicode_character) === "") {
+                console.log("empty character detected when casting charCode to string");
+            };
+        };
+        return output.join("");
+    };
+    
+    function unicode_char_mapper_csv(in_string)  {
+        var output = ['"character", "unicode_code"'];
+        for (let i = 0; i < in_string.length -1; i++) {
+            var plain_character = in_string.charAt(i);
+            var unicode_character = in_string.charCodeAt(i);
+            if (banned_character_codes.includes(unicode_character)) continue;
+            output.push(String('"'+plain_character) + '","' + String(unicode_character)+'"');
+            if (in_string.charCodeAt(i) == null) {
+                console.log("null character code detected: " + String(plain_character));
+            } else if (String(unicode_character) === "") {
+                console.log("empty character detected when casting charCode to string");
+            };
+        };
+        return output.join("\n");
     };
 
     function domToMarkdown(node, indentLevel = 0, banList = []) {
@@ -77,8 +165,8 @@ var specifiedFormat = 'json';
                     var itemtype = node.getAttribute("itemtype");
                     var handle_id;
                     var image_output;
-                    if (itemtype_mappings.hasOwnProperty(itemtype)) {
-                        handle_id = itemtype_mappings[itemtype];
+                    if (window._my_custom_data.itemtype_mappings.hasOwnProperty(itemtype)) {
+                        handle_id = window._my_custom_data.itemtype_mappings[itemtype];
                     } else {
                         handle_id = "default"
                     };
@@ -112,84 +200,6 @@ var specifiedFormat = 'json';
     };
 
     window._my_custom_methods.TeamsChatMessageExtractor = ((base64_flag=true)=>{
-        
-        function parseDateTimeWithTimeZone(dateTimeString, timeZone = 'America/Chicago') {
-            const date = new Date(dateTimeString);
-        
-            /* Convert to the target time zone by getting the offset */;
-            const localTime = date.getTime();
-            const localOffset = date.getTimezoneOffset() * 60000; /*Offset in milliseconds */;
-        
-            /* Calculate the offset for the specified time zone */;
-            const targetOffset = getOffsetForTimezone(timeZone, date);
-        
-            /* Adjust the time by the difference between local and target offsets */;
-            const targetTime = new Date(localTime + localOffset - targetOffset);
-            
-            return targetTime;
-        };
-        
-        function getOffsetForTimezone(timeZone, date) {
-            /* Convert to UTC */;
-            const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-        
-            /* Convert to the target time zone */;
-            const tzDate = new Date(date.toLocaleString('en-US', { timeZone }));
-        
-            /* Calculate the offset in milliseconds */;
-            const offset = utcDate.getTime() - tzDate.getTime();
-        
-            return offset;
-        }
-        
-        function image_to_base64(img_element) { 
-            const img = img_element;
-            if (!img) {
-            alert('Image not found');
-            return;
-            }
-        
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            
-            return canvas.toDataURL('image/png');;
-        }
-        
-        function unicode_cleaner(in_string) {
-            var output = [];
-            for (let i = 0; i < in_string.length -1; i++) {
-                var plain_character = in_string.charAt(i);
-                var unicode_character = in_string.charCodeAt(i);
-                if (banned_character_codes.includes(unicode_character)) continue;
-                output.push(plain_character);
-                if (in_string.charCodeAt(i) == null) {
-                    console.log("null character code detected: " + String(plain_character));
-                } else if (String(unicode_character) === "") {
-                    console.log("empty character detected when casting charCode to string");
-                };
-            };
-            return output.join("");
-        };
-        
-        function unicode_char_mapper_csv(in_string)  {
-            var output = ['"character", "unicode_code"'];
-            for (let i = 0; i < in_string.length -1; i++) {
-                var plain_character = in_string.charAt(i);
-                var unicode_character = in_string.charCodeAt(i);
-                if (banned_character_codes.includes(unicode_character)) continue;
-                output.push(String('"'+plain_character) + '","' + String(unicode_character)+'"');
-                if (in_string.charCodeAt(i) == null) {
-                    console.log("null character code detected: " + String(plain_character));
-                } else if (String(unicode_character) === "") {
-                    console.log("empty character detected when casting charCode to string");
-                };
-            };
-            return output.join("\n");
-        };
-        
         window._my_custom_methods.TeamsAutoBackupSelector = function TeamsAutoBackupSelector(element, cssSelector) {
             let replace_mapper = ["ChatMessage", "ChatMyMessage"];
             var target = element.querySelector(cssSelector);
@@ -358,12 +368,6 @@ var specifiedFormat = 'json';
             return output;
         };
         
-        var itemtype_mappings = {
-            "http://schema.skype.com/Emoji": "emoji",
-            "http://schema.skype.com/AMSImage": "image",
-            "http://schema.skype.com/Mention": "mention"
-        }
-        
         window._my_custom_methods.copyToClipboard = function copyToClipboard(text) {
             var tempInput = document.createElement('textarea');
             tempInput.style.position = 'fixed';
@@ -383,7 +387,7 @@ var specifiedFormat = 'json';
         var banned_character_codes = [55357, 56897];
         var chatElementsArray = [...chatElements];
         var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item)).filter(item => item !== null);
-        var output = pre_output; /* JSON.parse(json_string) */;
+        var output = pre_output;
         console.log(output);
         
         return output;
@@ -702,7 +706,7 @@ var specifiedFormat = 'json';
     
         const footer = `${reactions}  ${messageData.is_edited ? '\nEdited' : ''}`;
     
-        return `${header}${body}\n${footer}`.trim();
+        return `${header}${body}\n${footer}`.trim().replaceAll(/\u00a0/g, '');
     }
         
     function formatHtml(messageData) {
@@ -918,20 +922,30 @@ var specifiedFormat = 'json';
         return window.observerRegistry.get(observerId);
     };
 
-    if (!window.hasOwnProperty("_my_custom_menu")) {
-        window._my_custom_menu = {};
+    var settings_list = [
+        {
+            "name": "Output Format",
+            "description": "Choose from available output formats.",
+            "type": "radio",
+            "value": "markdown",
+            "available_values": ["json", "markdown", "html"]
+        }
+    ];
+    window._my_custom_methods.initialize_settings = function initialize_settings(settings_list) {
+        if (typeof window._my_modal_settings === 'undefined') {
+            window._my_modal_settings = {};
+        }
+        settings_list.forEach(setting=>{
+            if (!(window._my_modal_settings.hasOwnProperty(setting.name))) {
+                window._my_modal_settings[setting.name] = setting.value;
+            }
+        });
     };
+    window._my_custom_methods.initialize_settings(settings_list);
+
     window._my_custom_menu.items = [
         {text: 'Settings', onClick: () => {
-            window._my_custom_methods.showModalSettings("Settings", [
-                    {
-                        "name": "Output Format",
-                        "description": "Choose from available output formats.",
-                        "type": "radio",
-                        "value": "json",
-                        "available_values": ["json", "markdown", "html"]
-                    }
-                ]);
+            window._my_custom_methods.showModalSettings("Settings", settings_list);
             }
         },
         {text: 'Copy Teams Messages with images', onClick: () => {
@@ -947,7 +961,6 @@ var specifiedFormat = 'json';
         {text: 'Copy Teams Messages without images', onClick: () => {
             try {
                 var extractedMessages = window._my_custom_methods.TeamsChatMessageExtractor(false);
-                console.log(extractedMessages);
                 var chosen_format = (window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : 'json'
                 window._my_custom_methods.process_messages(extractedMessages);
                 window._my_custom_methods.showModal(`Chat messages copied to clipboard as "${chosen_format}".`);
