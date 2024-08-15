@@ -266,7 +266,7 @@ window._my_custom_methods.domToMarkdown = function domToMarkdown(node, indentLev
     if (replacementValue !== null) {
         return replacementValue;
     }
-
+    const parentNodeNewlineExclusions = ['p', 'span', '#text'];
     /* Handle text nodes */;
     /* if (node.nodeType === Node.TEXT_NODE) { */;
     if (node.nodeName == '#text') {
@@ -279,7 +279,7 @@ window._my_custom_methods.domToMarkdown = function domToMarkdown(node, indentLev
     }
     let further_processing = null;
     let result = '';
-    const tagName = node.tagName.toLowerCase();
+    const tagName = node.nodeName.toLowerCase();
 
     /* Helper function to handle lists (ul, ol) */;
     function listToMarkdown(listElement, indentLevel) {
@@ -362,7 +362,11 @@ window._my_custom_methods.domToMarkdown = function domToMarkdown(node, indentLev
                 .map(child => domToMarkdown(child, indentLevel, banList, base64_flag))
                 .join('');
             if (further_processing != null) result = further_processing(result);
-            return result + '\n';
+            var nodeParent = node?.parentNode;
+            console.log(nodeParent)
+            nodeParent = nodeParent !== null ? nodeParent.nodeName.toLowerCase() : 'null';
+            var suffix = parentNodeNewlineExclusions.includes(nodeParent) ? '': '\n';
+            return result + suffix;
         /* case 'li': */;
         case 'ul':
         case 'ol':
@@ -453,7 +457,7 @@ window._my_custom_methods.formatMarkdown = function formatMarkdown(messageData) 
 
     const footer = `${reactions}` + `${messageData.is_edited ? '\nEdited' : ''}`;
 
-    return `${header}\n${body}\n${footer}`.trim().replaceAll(/\u00a0/g, '');
+    return `${header}\n${body}\n${footer}`.trim().replaceAll(/\u00a0/g, ' ');
 };
 
 window._my_custom_methods.formatHtml = function formatHtml(messageData) {
