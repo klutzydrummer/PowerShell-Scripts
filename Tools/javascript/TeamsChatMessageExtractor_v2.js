@@ -158,7 +158,10 @@ window._my_custom_methods.TeamsChatMessageExtractor = function TeamsChatMessageE
         if (controlMessage !== null) {
             let chatTime = null;
             let chatAuthor = "System";
-            let chatBody = [...controlMessage.children[0].childNodes].map((item) => item?.textContent).join("");
+            let chatBodyString = Array.from(controlMessage.childNodes[0].childNodes).map((item) => item?.textContent).join("");
+            let chatBodyElement = document.createElement('span');
+            chatBodyElement.textContent = chatBodyString;
+            let chatBody = window._my_custom_methods.domToHtml(chatBodyElement);
             let referencedMessage = null;
             let reactionCounts = null;
             return {
@@ -235,8 +238,8 @@ window._my_custom_methods.TeamsChatMessageExtractor = function TeamsChatMessageE
     var each = chatElements[targetIndex];
     var chatElement = each;
     var banned_character_codes = [55357, 56897];
-    var chatElementsArray = [...chatElements];
-    var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item)).filter(item => item !== null);
+    var chatElementsArray = Array.from(chatElements);
+    var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item)).filter(item => item.author !== null);
     var output = pre_output;
     return output;
 };
