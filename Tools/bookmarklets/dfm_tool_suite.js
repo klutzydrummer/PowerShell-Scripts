@@ -61,20 +61,65 @@ function make_contacts_click_copy() {
     var rowsElements = Array.from(contactsElement.querySelector('[class="ag-center-cols-viewport"]').querySelectorAll('[role="row"]'));
     var rowsOfCells = rowsElements.map(row=>Array.from(row.querySelectorAll('[class^="ag-cell"]')).map(cell=>cell.querySelector('[class^="ms-TooltipHost"]')));
     rowsOfCells.forEach(row=>row.forEach(cell=>{
-        if (cell !== null) cell.onclick = ()=>{
-            console.log('testclicked');
+        if (cell !== null && !cell.hasAttribute('copyfuncadded')) cell.onclick = ()=>{
             var textToCopy = cell.textContent;
             var textHalfwayPoint = Math.floor(textToCopy.length / 2);
             textToCopy = (textToCopy.slice(0,textHalfwayPoint) == textToCopy.slice(textHalfwayPoint, textToCopy.length)) ? textToCopy.slice(0,textHalfwayPoint) : textToCopy;
             window._my_custom_methods.copyToClipboard(textToCopy);
         };
+        cell.setAttribute('copyfuncadded', true);
     }));
-    console.log("added helper function to contacts cells.");
 };
 function make_contacts_click_copy_auto(seconds) {
     setup_interval_runner(interval_id='myContactsCopyable', callable=(()=>{if (document.querySelector('[data-id^="ref_pan_Summary_tab_section"]') !== null) make_contacts_click_copy()}), seconds=seconds);
 };
+function make_case_details_click_copy() {
+    var caseViewHeader = document.querySelector('[data-id="form-header"]');
+    if (caseViewHeader) {
+        var caseInfoHeaderParts = Array.from(caseViewHeader.querySelector('[id^="headerControlsList"]').querySelectorAll('[data-preview_orientation="column"]'));
+        var caseNumberElement = caseInfoHeaderParts[0];
+        var caseSeverityElement = caseInfoHeaderParts[1];
+        var caseStatusElement = caseInfoHeaderParts[2];
+        var caseAssignedToElement = caseInfoHeaderParts[3];
+        var caseNumberMatch = caseNumberElement.textContent.match(/(\d{16})/);
+        var caseNumber = caseNumberMatch.length > 0 ? caseNumberMatch[0] : '';
+        caseNumberElement.onclick = ()=>{
+            var textToCopy = caseNumber;
+            window._my_custom_methods.copyToClipboard(textToCopy);
+        };
+        var caseSeverity = 'Severity '+ caseStatusElement.textContent.replace('Severity', '');
+        caseSeverityElement.onclick = ()=>{
+            var textToCopy = caseSeverity;
+            window._my_custom_methods.copyToClipboard(textToCopy);
+        };
+        var caseStatus = caseStatusElement.textContent.replace('Status reason', '');
+        caseStatusElement.onclick = ()=>{
+            var textToCopy = caseStatus;
+            window._my_custom_methods.copyToClipboard(textToCopy);
+        };
+        var caseTitleElement = caseViewHeader.querySelector('[data-id="header_title"]');
+        var caseTitle = caseTitleElement.textContent.replace('- Saved', '');
+        caseTitleElement.onclick = ()=>{
+            var textToCopy = caseTitle;
+            window._my_custom_methods.copyToClipboard(textToCopy);
+        };
+        var groupChatTitleButton = document.createElement('button');
+        groupChatTitleButton.textContent = "CSAM/IM Chat Title";
+        var groupChatTitleButton_id_string = "csam_im_group_chat_title_button";
+        groupChatTitleButton.id = groupChatTitleButton_id_string;
+        groupChatTitleButton.onclick = ()=>{
+            var textToCopy = `${caseNumber} | ${caseTitle}`;
+            window._my_custom_methods.copyToClipboard(textToCopy);
+        };
+        if (!document.getElementById(groupChatTitleButton_id_string)) caseViewHeader.appendChild(groupChatTitleButton);
+    };
+};
+function make_case_details_click_copy_auto(seconds) {
+    setup_interval_runner(interval_id='myCaseDetialsCopyable', callable=make_case_details_click_copy, seconds=seconds);
+};
+
 /* dfm_dash_refresh_auto(seconds=10) */;
 make_contacts_click_copy_auto(seconds=10);
 autoPendingSlaAlarm(seconds=10, sleep_counter=6);
+make_case_details_click_copy_auto(seconds=5);
 })();
