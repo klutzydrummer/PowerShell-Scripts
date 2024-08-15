@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from pop_up_windows import custom_popup_input
+from pop_up_windows import custom_popup_input, migrate_popup_fields
 from branutils import load_config, open_explorer
 from datetime import datetime, timedelta
 
@@ -22,10 +22,10 @@ if __name__ == "__main__":
     result, confirmed = custom_popup_input(
         "Template Info",
         "Please enter your details:",
-        {
+        migrate_popup_fields({
             "case_number": "Case Number:",
             "customer_name": "Customer Name:",
-        }
+        })
     )
 
     if not confirmed:

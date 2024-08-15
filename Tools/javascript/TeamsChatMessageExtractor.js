@@ -105,7 +105,7 @@ var specifiedFormat = 'json';
         return output.join("\n");
     };
 
-    function domToMarkdown(node, indentLevel = 0, banList = []) {
+    function domToMarkdown(node, indentLevel = 0, banList = [], base64_flag) {
         let banListCheck = (typeof node.getAttribute !== 'undefined') ? banList.map(object => {
             let elementAttribute = node?.getAttribute(object.attribute);
             return (elementAttribute == object.value && object.hasOwnProperty('replaceValue')) ? object.replaceValue : null;
@@ -134,7 +134,7 @@ var specifiedFormat = 'json';
         if (isParagraph) {
             /* For paragraphs, concatenate all child content without newlines */;
             result = Array.from(node.childNodes)
-                .map(child => domToMarkdown(child, indentLevel, banList))
+                .map(child => domToMarkdown(node=child, indentLevel=indentLevel, banList=banList, base64_flag=base64_flag))
                 .join('')
                 .trim();
             return '  '.repeat(indentLevel) + result + '\n';
@@ -144,15 +144,16 @@ var specifiedFormat = 'json';
             const childTag = child.nodeType === Node.ELEMENT_NODE ? child.tagName.toLowerCase() : null;
             
             if (child.nodeType === Node.TEXT_NODE || (child.nodeType === Node.ELEMENT_NODE && ['a', 'strong', 'em', 'code', 'span'].includes(childTag))) {
-                result += domToMarkdown(child, indentLevel, banList);
+                result += domToMarkdown(node=child, indentLevel=indentLevel, banList=banList, base64_flag=base64_flag);
             } else {
-                result += domToMarkdown(child, isUnorderedList ? indentLevel + 1 : indentLevel, banList);
+                result += domToMarkdown(node=child, indentLevel=isUnorderedList ? indentLevel + 1 : indentLevel, banList=banList, base64_flag=base64_flag);
             };
         };
     
         switch (tagName) {
             case 'a':
-                return `[${node.textContent}](${node.getAttribute('href')})`;
+                let url = (node.hasOwnProperty("getAttribute")) ? `[${node.textContent}](${node.getAttribute('href')})` : node?.textContent;
+                return url;
             case 'br':
                 return '\n' + '  '.repeat(indentLevel);
             case 'div':
@@ -199,7 +200,7 @@ var specifiedFormat = 'json';
         };
     };
 
-    window._my_custom_methods.TeamsChatMessageExtractor = ((base64_flag=true)=>{
+    window._my_custom_methods.TeamsChatMessageExtractor = ()=>{
         window._my_custom_methods.TeamsAutoBackupSelector = function TeamsAutoBackupSelector(element, cssSelector) {
             let replace_mapper = ["ChatMessage", "ChatMyMessage"];
             var target = element.querySelector(cssSelector);
@@ -388,10 +389,8 @@ var specifiedFormat = 'json';
         var chatElementsArray = [...chatElements];
         var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item)).filter(item => item !== null);
         var output = pre_output;
-        console.log(output);
-        
         return output;
-    });
+    };
 
     window._my_custom_methods.showModal = function showModal(message) {
         /* Create modal container */
@@ -814,7 +813,7 @@ var specifiedFormat = 'json';
         return container.outerHTML;
     }
 
-    window._my_custom_methods.process_messages = function process_messages(messages) {
+    window._my_custom_methods.process_messages = function process_messages(messages, base64_flag=true) {
         var chosen_format;
         if (window._my_modal_settings.hasOwnProperty("Output Format")) {
             chosen_format = window._my_modal_settings["Output Format"];
@@ -823,11 +822,11 @@ var specifiedFormat = 'json';
         var postprocessed_messages;
         switch (chosen_format) {
             case 'json':
-                postprocessed_messages = JSON.stringify(preprocessed_messages.map(message=>{message.message_body = domToMarkdown(message.message_body); return formatMarkdown(message)}));
+                postprocessed_messages = JSON.stringify(preprocessed_messages.map(message=>{message.message_body = domToMarkdown(node=message.message_body, indentLevel=0, banList=[], base64_flag=base64_flag); return formatMarkdown(message)}));
                 break;
             case 'markdown':
                 var seperator = "\n\n---\n\n";
-                postprocessed_messages = preprocessed_messages.map(message=>{message.message_body = domToMarkdown(message.message_body); return formatMarkdown(message)}).join(seperator);
+                postprocessed_messages = preprocessed_messages.map(message=>{message.message_body = domToMarkdown(node=message.message_body, indentLevel=0, banList=[], base64_flag=base64_flag); return formatMarkdown(message)}).join(seperator);
                 break;
             case 'html':
                 var seperator = "\n\n<br><br><hr><br><br>\n\n";
@@ -838,7 +837,7 @@ var specifiedFormat = 'json';
                 throw new Error(`Specified format "${chosen_format}" invalid.`);
         }
 
-        window._my_custom_methods.copyToClipboard(postprocessed_messages);
+        return (postprocessed_messages);
     };
 
     window._my_custom_methods.getMenu = function getMenu() {
@@ -950,20 +949,22 @@ var specifiedFormat = 'json';
         },
         {text: 'Copy Teams Messages with images', onClick: () => {
             try {
-                var extractedMessages = window._my_custom_methods.TeamsChatMessageExtractor(true);
+                var extractedMessages = window._my_custom_methods.TeamsChatMessageExtractor();
                 var chosen_format = (window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : 'json'
-                window._my_custom_methods.process_messages(extractedMessages);
-                window._my_custom_methods.showModal(`Chat messages copied to clipboard as "${chosen_format}".`);
+                var formatted_messages = window._my_custom_methods.process_messages(messages=extractedMessages, base64_flag=true);
+                window._my_custom_methods.copyToClipboard(formatted_messages);
+                window._my_custom_methods.showModal(`Chat messages copied with images to clipboard as "${chosen_format}".`);
             } catch (error) {
                 console.error("Error in TeamsChatMessageExtractor:", error);
             }
         }},
         {text: 'Copy Teams Messages without images', onClick: () => {
             try {
-                var extractedMessages = window._my_custom_methods.TeamsChatMessageExtractor(false);
+                var extractedMessages = window._my_custom_methods.TeamsChatMessageExtractor();
                 var chosen_format = (window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : 'json'
-                window._my_custom_methods.process_messages(extractedMessages);
-                window._my_custom_methods.showModal(`Chat messages copied to clipboard as "${chosen_format}".`);
+                var formatted_messages = window._my_custom_methods.process_messages(messages=extractedMessages, base64_flag=false);
+                window._my_custom_methods.copyToClipboard(formatted_messages);
+                window._my_custom_methods.showModal(`Chat messages copied without images to clipboard as "${chosen_format}".`);
             } catch (error) {
                 console.error("Error in TeamsChatMessageExtractor:", error);
             }

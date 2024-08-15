@@ -5,7 +5,7 @@ from collections import deque
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from branutils import open_explorer, load_config, get_case_data_from_csv
-from pop_up_windows import popup_with_copy, custom_popup_input
+from pop_up_windows import popup_with_copy, custom_popup_input, migrate_popup_fields
 import pathlib
 from pprint import pprint
 import re
@@ -73,7 +73,7 @@ Close this window to proceed to the next step, where that CSV will be used.""")
     result, confirmed = custom_popup_input(
         title="Enter CSV from last step.",
         message="Enter the JSON that was gathered from the last step.",
-        fields={"data": "Paste CSV here:"}
+        fields=migrate_popup_fields({"data": "Paste CSV here:"})
     )
     if confirmed is not True:
         exit()

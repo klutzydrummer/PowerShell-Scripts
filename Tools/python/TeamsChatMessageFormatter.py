@@ -4,7 +4,7 @@ from collections import deque
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from branutils import open_explorer, load_config
-from pop_up_windows import popup_with_copy, custom_popup_input
+from pop_up_windows import popup_with_copy, custom_popup_input, migrate_popup_fields
 from typing import List
 
 FLAGS_AND_TEMPLATES = [
@@ -70,7 +70,7 @@ def fetch_data():
     if js_copied is not True:
         pass
     
-    result, confirmed = custom_popup_input(title="Enter JSON from Teams", message="Enter the JSON that was gathered from the last step.", fields={"TeamsJSON": "Paste JSON here:"})
+    result, confirmed = custom_popup_input(title="Enter JSON from Teams", message="Enter the JSON that was gathered from the last step.", fields=migrate_popup_fields({"TeamsJSON": "Paste JSON here:"}))
     if confirmed is not True:
         exit()
     
