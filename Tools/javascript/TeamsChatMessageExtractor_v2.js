@@ -14,6 +14,8 @@ if (removeScript == true) {
 if (!window._my_custom_methods) window._my_custom_methods = {};
 if (!window._my_custom_data) window._my_custom_data = {};
 if (!window._my_modal_settings) window._my_modal_settings = {};
+window._my_custom_data.indent = 2;
+window._my_custom_data.indent_String = ' '.repeat(window._my_custom_data.indent);
 window._my_custom_methods.itemtype_mappings = function itemtype_mappings(itemtype) {
     const mappings = {
         "http://schema.skype.com/Emoji": "emoji",
@@ -239,7 +241,9 @@ window._my_custom_methods.TeamsChatMessageExtractor = function TeamsChatMessageE
     var chatElement = each;
     var banned_character_codes = [55357, 56897];
     var chatElementsArray = Array.from(chatElements);
-    var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item)).filter(item => item.author !== null);
+    var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item))
+    console.log(pre_output);
+    pre_output = pre_output.filter(item => item !== null).filter(item => item?.author !== null);
     var output = pre_output;
     return output;
 };
@@ -337,7 +341,7 @@ window._my_custom_methods.domToMarkdown = function domToMarkdown(node, indentLev
     
             return removeAllTrailingNewline(markdown);
         }
-        let output = parseList(element=listElement, level=indentLevel).replaceAll(indent_token, '  ').replaceAll("\r\n","\n");
+        let output = parseList(element=listElement, level=indentLevel).replaceAll(indent_token, window._my_custom_data.indent_String).replaceAll("\r\n","\n");
         return output;
     };
 
@@ -975,7 +979,7 @@ window._my_custom_methods.copyTeamsMessages = ((base64_flag, modal_message) => {
 window._my_custom_menu.items = [
     {text: 'Settings', onClick: window._my_custom_methods.setting_click},
     {text: 'Copy Teams Messages with images', onClick: ()=>{window._my_custom_methods.copyTeamsMessages(base64_flag=true, modal_message='Chat messages copied with images to clipboard as ')}},
-    {text: 'Copy Teams Messages without images', onClick: ()=>{window._my_custom_methods.copyTeamsMessages(base64_flag=true, modal_message='Chat messages copied without images to clipboard as ')}}
+    {text: 'Copy Teams Messages without images', onClick: ()=>{window._my_custom_methods.copyTeamsMessages(base64_flag=false, modal_message='Chat messages copied without images to clipboard as ')}}
 ];
 if (addMenu == true) {
     window._my_custom_methods.mutation_runner = (()=>{

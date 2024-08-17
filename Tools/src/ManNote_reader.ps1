@@ -3,8 +3,14 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # Constants
-$managerNotesJson = Get-ChildItem -Path "C:\Users\v-brhouser\OneDrive - Microsoft\Manager_Notes" -Filter "*.json"
-# $jsonFilePath = "C:\Users\v-brhouser\OneDrive - Microsoft\Brandon_Susan_Notes_08_02_2024.json"
+# Get the current script directory
+$currentScriptPath = Join-Path -Path $PSScriptRoot -ChildPath "ManNote_reader.ps1";
+$srcDirectory = $PSScriptRoot;
+$basePath = $srcDirectory | Split-Path;
+$configPath = Join-Path -Path $basePath -ChildPath "config";
+$configJsonPath = Join-Path -Path $configPath -ChildPath "my_data.json";
+$config = Get-Content -Path $configJsonPath -Raw | ConvertFrom-Json;
+$managerNotesJson = Get-ChildItem -Path $config.manager_notes_path -Filter "*.json"
 
 # Function to create a new control with common settings
 function Sort-FilesByDate {
@@ -31,14 +37,14 @@ function Sort-FilesByDate {
                 Date = $date
             }
         }
-    } | Sort-Object -Property Date | Select-Object -ExpandProperty File
-
+    } | Sort-Object -Property Date -Descending | Select-Object -ExpandProperty File
     return $sortedArray
 }
 
 # Example usage
 $sortedNoteFiles = Sort-FilesByDate -FileArray $managerNotesJson
 $jsonFilePath = $sortedNoteFiles[0].FullName
+Write-Host $jsonFilePath
 
 
 function Create-Control {
@@ -156,7 +162,7 @@ $goButton.Add_Click({
             }
             $managerNotesTextArea.Text = ($formattedNotes -join "`r`n`r`n---`r`n`r`n")
         } else {
-            [System.Windows.Forms.MessageBox]::Show("Case Number not found in the JSON file.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            [System.Windows.Forms.MessageBox]::Show("Case Number not found in the JSON file.`n$($jsonFilePath)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     } else {
         [System.Windows.Forms.MessageBox]::Show("JSON file not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)

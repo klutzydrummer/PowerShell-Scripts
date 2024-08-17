@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 from branutils import load_config
 from pop_up_windows import file_folder_picker
+from io import StringIO
 
 def process_comments(comments: str) -> str:
     comments = str(comments)
@@ -43,7 +44,9 @@ if __name__ == "__main__":
     }
     match manager_notes_path.suffix:
         case ".csv":
-            df = pd.read_csv(manager_notes_path, dtype=column_types)
+            with open(manager_notes_path, 'r', encoding='utf-8', errors='ignore') as f:
+                csv_string = f.read()
+            df = pd.read_csv(StringIO(csv_string), dtype=column_types)
         case ".xlsx":
             df = pd.read_excel(manager_notes_path, dtype=column_types)
         case _:
@@ -61,3 +64,4 @@ if __name__ == "__main__":
     json_out_path = manager_notes_path.with_suffix('.json')
     with open(json_out_path, 'w', encoding="utf-8", errors="ignore") as f:
         f.write(json_out)
+    print("Succesfulyl parsed manager notes.\nFile saved to: {path}".format(path=json_out_path))
