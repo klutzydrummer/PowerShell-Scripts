@@ -115,7 +115,7 @@ function Convert-MarkdownToHtml {
     }
     finally {
         # Clean up the temporary files
-        # Remove-Item -Path $tempMarkdownFile, $tempHtmlFile, $tempStyledHtmlFile -ErrorAction SilentlyContinue
+        Remove-Item -Path $tempMarkdownFile, $tempHtmlFile, $tempStyledHtmlFile -ErrorAction SilentlyContinue
     }
 }
 
