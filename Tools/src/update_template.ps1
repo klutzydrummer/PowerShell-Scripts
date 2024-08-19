@@ -2,6 +2,123 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+# Load cofig files
+# Get the current script directory
+$currentScriptPath = Join-Path -Path $PSScriptRoot -ChildPath "ManNote_reader.ps1";
+$srcDirectory = $PSScriptRoot;
+$basePath = $srcDirectory | Split-Path;
+$configPath = Join-Path -Path $basePath -ChildPath "config";
+$configJsonPath = Join-Path -Path $configPath -ChildPath "my_data.json";
+$config = Get-Content -Path $configJsonPath -Raw | ConvertFrom-Json;
+$templatesPath = Join-Path -Path $basePath -ChildPath "templates";
+$templatePath = Join-Path -Path $templatesPath -ChildPath "case_notes_template.handlebars";
+$cssFilePath = Join-Path -Path $templatesPath -ChildPath "case_notes_template.css";
+$binPath = Join-Path -Path $basePath -ChildPath "bin";
+$pandocPath = Join-Path -Path $binPath -ChildPath "pandoc" | Join-Path -ChildPath "pandoc.exe";
+$tempPath = Join-Path -Path $basePath -ChildPath "temp"
+
+# HTML TEMPLATE STRING
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+function Set-ClipboardHtml {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$html
+    )
+
+    # Define the HTML header and footer
+    $header = "Version:0.9" + "`r`n" + 
+            "StartHTML:00000097" + "`r`n" + 
+            "EndHTML:" + "{0:D8}" + "`r`n" + 
+            "StartFragment:00000133" + "`r`n" + 
+            "EndFragment:" + "{1:D8}" + "`r`n" +
+            "SourceURL:vscode-webview://1rqci4mv8hm2kcvlgsfte6vh30e406j9229k46lad3jce16bgo72/index.html?id=992efc56-d9c6-49a3-99f6-b2def6044010&origin=0b2a166c-e743-4b3d-9fb1-fbbcc33324d5&swVersion=4&extensionId=vscode.markdown-language-features&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app"
+    $footer = ""
+
+    # Calculate the positions for StartHTML and EndHTML
+    $fullHtml = $header + $html + $footer
+    $startHTML = [Text.Encoding]::Default.GetByteCount($header)
+    $endHTML = $startHTML + [Text.Encoding]::Default.GetByteCount($html) + [Text.Encoding]::Default.GetByteCount($footer)
+
+    # Replace placeholders with calculated positions
+    $fullHtml = $fullHtml -replace "\{0:D8\}", $startHTML.ToString("D8")
+    $fullHtml = $fullHtml -replace "\{1:D8\}", $endHTML.ToString("D8")
+
+    # Set the HTML content to the clipboard
+    Add-Type -AssemblyName PresentationCore
+    $bytes = [Text.Encoding]::UTF8.GetBytes($fullHtml)
+
+    $dataObject = New-Object Windows.Forms.DataObject
+    $dataObject.SetData([Windows.Forms.DataFormats]::Html, $false, [System.IO.MemoryStream]::new($bytes))
+
+    [Windows.Forms.Clipboard]::SetDataObject($dataObject, $true)
+}
+function fill-template {
+    param (
+        [string]$html
+    )
+    $html_template_string = Get-Content -Path $templatePath -Raw;
+    $html_template_string = $html_template_string -replace "{{html}}", $html
+
+    return $html_template_string;
+
+};
+
+function prepandoc-transform {
+    param (
+        [string]$MarkdownString
+    )
+    if ($MarkdownString.StartsWith("-")) {
+        $MarkdownString = $MarkdownString.Substring(1)
+    }
+    return $MarkdownString
+}
+
+function postpandoc-transform {
+    param (
+        [string]$HtmlString
+    )
+    $line = "&#9472;" * 80
+    $HtmlString = $HtmlString -replace "<hr>", "<span style='display: block; font-size: 16px; line-height: 1; margin: 20px 0;'>$line</span>"
+    return $HtmlString
+}
+function Convert-MarkdownToHtml {
+    param (
+        [string]$MarkdownString
+    )
+
+    # Path to the pandoc binary
+    $pandocPath = $pandocPath;
+
+    # Generate a temporary filename with a timestamp
+    $timestamp = (Get-Date).ToString("yyyyMMddHHmmss")
+    $tempMarkdownFile = Join-Path -Path $tempPath -ChildPath "$timestamp.md"
+    $tempHtmlFile = Join-Path -Path $tempPath -ChildPath "$($timestamp)_pandoc.html"
+    $tempStyledHtmlFile = Join-Path -Path $tempPath -ChildPath "$($timestamp)_styled.html"
+
+    $MarkdownString = prepandoc-transform -$MarkdownString
+
+    try {
+        # Save the Markdown string to the temporary file
+        Set-Content -Path $tempMarkdownFile -Value $MarkdownString -Encoding UTF8
+
+        # Convert the Markdown file to HTML using Pandoc
+        & $pandocPath $tempMarkdownFile -f markdown_github -t html -o $tempHtmlFile # --metadata title="Case Update" --css=$cssFilePath --embed-resources --standalone
+        Write-Host Start-Process -FilePath "python" -ArgumentList "-m premailer --allow-loading-external-files --external-style=`"$cssPath`" --remove-classes --file=`"$tempHtmlFile`" --output=`"$tempStyledHtmlFile`"" -NoNewWindow -Wait
+        Start-Process -FilePath "python" -ArgumentList "-m premailer --allow-loading-external-files --external-style=`"$cssFilePath`" --remove-classes --file=`"$tempHtmlFile`" --output=`"$tempStyledHtmlFile`"" -NoNewWindow -Wait
+        # Read the HTML output into a string
+        $htmlString = Get-Content -Path $tempStyledHtmlFile -Raw -Encoding UTF8
+        $htmlString = postpandoc-transform -HtmlString $htmlString
+        # Return the HTML string
+        return $htmlString
+    }
+    finally {
+        # Clean up the temporary files
+        # Remove-Item -Path $tempMarkdownFile, $tempHtmlFile, $tempStyledHtmlFile -ErrorAction SilentlyContinue
+    }
+}
+
 # Constants for configuration and fixed values
 $DateFormat = "MM-dd-yyyy"
 $DefaultCaseStatus = "Troubleshooting"
@@ -226,6 +343,11 @@ function Create-Control {
     return $control
 }
 
+# Variable for old text
+$script:copiedTextMd = '';
+$script:copiedTextMd_Html = '';
+$script:copiedTextHtml = '';
+
 # Create the main form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Case Management"
@@ -338,7 +460,7 @@ $($nextActionTextAreaText)
     } | ConvertTo-Json -Depth 10 -Compress
 
     $b64encoded = Compress-And-Base64Encode -InputString $jsonOutput
-    $outputText = $outputText + "`r`n<span style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded  `r`n:End Compressed Base64Encoded JSON</span>"
+    $outputText = $outputText + "`r`n<span class='invisible' style=`"color: transparent;`">Compressed Base64Encoded JSON:`r`n$b64encoded  `r`n:End Compressed Base64Encoded JSON</span>"
     $templateTextArea.Text = $outputText
 })
 
@@ -352,9 +474,31 @@ $clearButton.Add_Click({
     $caseStatusComboBox.SelectedIndex = $defaultCaseStatusIndex
 })
 
-$copyButton = Create-Control -type "Button" -text "Copy"
-$copyButton.Add_Click({
-    [System.Windows.Forms.Clipboard]::SetText($templateTextArea.Text)
+$copyButtonMd = Create-Control -type "Button" -text "Copy md"
+$copyButtonMd.Add_Click({
+    $textToCopy = $templateTextArea.Text
+    if ($textToCopy -ne $script:copiedTextMd) {
+        $script:copiedTextMd = $textToCopy
+    }
+    [System.Windows.Forms.Clipboard]::SetText($textToCopy)
+    [System.Windows.Forms.MessageBox]::Show("Template copied to clipboard!")
+})
+
+$copyButtonHtml = Create-Control -type "Button" -text "Copy Html"
+$copyButtonHtml.Add_Click({
+    $textToCopy = $templateTextArea.Text
+    if ($textToCopy -ne $script:copiedTextMd_Html) {
+        $script:copiedTextMd_Html = $textToCopy
+        
+        $output_html = Convert-MarkdownToHtml -MarkdownString $templateTextArea.Text;
+        # Remove the dash if it is at the beginning of the string
+        $output_html = fill-template -html $output_html;
+        $script:copiedTextHtml = $output_html
+    } else {
+        Write-Host "Text hasn't changed reusing Html output."
+        $output_html = $script:copiedTextHtml;
+    }
+    Set-ClipboardHtml -html $output_html;
     [System.Windows.Forms.MessageBox]::Show("Template copied to clipboard!")
 })
 
@@ -473,7 +617,8 @@ $tableLayoutPanel.SetColumnSpan($buttonPanel, 2)
 # Add buttons to the button panel
 $buttonPanel.Controls.Add($generateButton)
 $buttonPanel.Controls.Add($clearButton)
-$buttonPanel.Controls.Add($copyButton)
+$buttonPanel.Controls.Add($copyButtonMd)
+$buttonPanel.Controls.Add($copyButtonHtml)
 $buttonPanel.Controls.Add($importButton)
 
 # Show the form
