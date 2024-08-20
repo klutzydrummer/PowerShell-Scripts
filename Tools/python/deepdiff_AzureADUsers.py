@@ -17,25 +17,19 @@ if __name__ == "__main__":
         initial_dir=notes_path
     )
 
-    with open(json_path, 'r', encoding='utf-8-sig') as f:
+    with open(json_path, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read()
-        print(content)
-        data = json.loads(content)
+        # print(content)
+    data = json.loads(content)
 
-    side_by_side = [data[key] for key in data.keys()]
-    for user in side_by_side:
-        # user.pop('AssignedPlans', None)
-        # user.pop('ProvisionedPlans', None)
-        # user.pop('ProxyAddresses', None)
-        # user.pop('ProvisioningErrors', None)
-        # user.pop('StreetAddress', None)
-        # user.pop('OtherMails', None)
-        # user.pop('AssignedLicenses', None)
-        user.get('ExtensionProperty', {'createdDateTime': None}).pop('createdDateTime', None)
-        for plan in user.get('AssignedPlans', []):
-            plan.pop('AssignedTimestamp', None)
-        # for plan in user.get('ProvisionedPlans', []):
-        #     plan.pop('ProvisioningStatus', None)
-
-    diff = DeepDiff(side_by_side[0], side_by_side[1], ignore_order=True)
-    pprint.pprint(diff)
+    output = []
+    for key, cmd_output in data.items():
+        TargetUserExternal = cmd_output.get('TargetUserExternal')
+        TargetUserInternal = cmd_output.get('TargetUserInternal')
+        diff = json.loads(DeepDiff(TargetUserExternal, TargetUserInternal, ignore_order=True).to_json().replace('old_','external_user_').replace('new_','internal_user_'))
+        output.append([key, diff])
+    pprint.pprint(output)
+    
+    for (key, data) in output:
+        with open(r"C:\Users\v-brhouser\OneDrive - Microsoft\Notes\2403180040012580\info_gather_2\external_sheila.ayala__internal_doug.powelson\json_file_diff_{key}.json".format(key=key), 'w', encoding='utf-8', errors='ignore') as f:
+            f.write(json.dumps(data, indent=4))

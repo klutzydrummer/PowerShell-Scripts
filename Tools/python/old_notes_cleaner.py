@@ -43,39 +43,49 @@ if __name__ == "__main__":
     
     number_lines = lambda x: "\n".join([f"{i+1}. {line}" for i, line in enumerate(x.split("\n"))])
     
-    url_copy_message = number_lines("""Click 'Copy' to copy the URL.
-Paste into the url bar of your browser.
-Close the window for the next step.""")
-    url_copied = popup_with_copy(
-        title="Copy URL to clipboard.",
-        message=url_copy_message,
-        copy_data=url,
-        always_on_top=True
-    )
+#     url_copy_message = number_lines("""Click 'Copy' to copy the URL.
+# Paste into the url bar of your browser.
+# Close the window for the next step.""")
+#     url_copied = popup_with_copy(
+#         title="Copy URL to clipboard.",
+#         message=url_copy_message,
+#         copy_data=url,
+#         always_on_top=True
+#     )
     
-    weekly_case_tracker_js_path = script_directory.parent / "bookmarklets/weekly_case_tracker_v2.js"
-    with open(weekly_case_tracker_js_path, 'r', encoding="utf-8", errors="ignore") as f:
-        weekly_case_tracker_js = f.read()
-    weekly_case_tracker_js = "javascript:" + weekly_case_tracker_js
-    js_copy_message = number_lines("""Click 'Copy' to copy the required JavaScript.
-Go to the browser where you opened the URL from the last step.
-Type "javascript:" then paste into the address bar and hit enter.
-The information should be copied to your clipboard in CSV format.
-Close this window to proceed to the next step, where that CSV will be used.""")
-    js_copied = popup_with_copy(
-        title="Copy {filename} to clipboard.".format(filename=weekly_case_tracker_js_path.name),
-        message=js_copy_message,
-        copy_data=weekly_case_tracker_js,
-        always_on_top=True
-    )
-    if js_copied is not True:
-        pass # exit()
+#     weekly_case_tracker_js_path = script_directory.parent / "bookmarklets/weekly_case_tracker_v2.js"
+#     with open(weekly_case_tracker_js_path, 'r', encoding="utf-8", errors="ignore") as f:
+#         weekly_case_tracker_js = f.read()
+#     weekly_case_tracker_js = "javascript:" + weekly_case_tracker_js
+#     js_copy_message = number_lines("""Click 'Copy' to copy the required JavaScript.
+# Go to the browser where you opened the URL from the last step.
+# Type "javascript:" then paste into the address bar and hit enter.
+# The information should be copied to your clipboard in CSV format.
+# Close this window to proceed to the next step, where that CSV will be used.""")
+#     js_copied = popup_with_copy(
+#         title="Copy {filename} to clipboard.".format(filename=weekly_case_tracker_js_path.name),
+#         message=js_copy_message,
+#         copy_data=weekly_case_tracker_js,
+#         always_on_top=True
+#     )
+#     if js_copied is not True:
+#         pass # exit()
     result, confirmed = custom_popup_input(
-        title="Enter CSV from last step.",
-        message="Enter the JSON that was gathered from the last step.",
-        fields=migrate_popup_fields({"data": "Paste CSV here:"})
+        title="Enter Case Data CSV.",
+        message="Enter CSV from dfm tool suite.",
+        fields=[
+            {
+                "attribute": "data",
+                "label": "Paste CSV here:",
+                "type": str,
+                "kwargs": {"multiline": True}
+            }
+        ],
     )
     if confirmed is not True:
+        print("Exiting script.")
+        print(result)
+        print(confirmed)
         exit()
     case_data = get_case_data_from_csv(result.get("data"))
     active_case_numbers = [case.get("number") for case in case_data]

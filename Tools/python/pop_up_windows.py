@@ -28,7 +28,7 @@ def custom_popup_input(title: str, message: str, fields: List[Dict[str, str]], a
     RIGHT_COLUMN_WIDTH = 200
     MULTILINE_HEIGHT = 5
     result = {}
-    cancelled = False
+    confirmed = False
 
     root = tk.Tk()
     root.title(title)
@@ -137,14 +137,19 @@ def custom_popup_input(title: str, message: str, fields: List[Dict[str, str]], a
         label_text = field['label'] + type_hint
         
         default_value = field.get("value")
-        label = ttk.Label(inner_frame, text=label_text, anchor="w")
-        label.grid(row=i, column=0, sticky="w", padx=(0, PADDING), pady=(PADDING, 0))
+        label = ttk.Label(inner_frame, text=label_text, anchor="nw", justify='left')
+        label.grid(row=i * 2, column=0, sticky="w", padx=(0, PADDING), pady=(PADDING, 0))
         labels.append(label)
 
         input_widget = create_input_widget(parent=inner_frame, field_type=field['type'], value=default_value, kwargs=field.get("kwargs"))
-        input_widget.grid(row=i, column=1, sticky="e", padx=(PADDING, 0), pady=(PADDING, 0))
+        input_widget.grid(row=i * 2, column=1, sticky="e", padx=(PADDING, 0), pady=(PADDING, 0))
 
         result[field['attribute']] = InputWrapper(input_widget, field['type'], field.get("kwargs"))
+
+        # Add a separator below each input field
+        if i < len(fields) - 1:  # Don't add a separator after the last field
+            separator = ttk.Separator(inner_frame, orient='horizontal')
+            separator.grid(row=i * 2 + 1, column=0, columnspan=2, sticky="ew", pady=(PADDING, 0))
 
     # Function to update the wraplength of labels
     def update_wraplengths(width):
@@ -156,14 +161,15 @@ def custom_popup_input(title: str, message: str, fields: List[Dict[str, str]], a
     button_frame.pack(fill=tk.X, padx=PADDING, pady=PADDING)
 
     def on_ok():
-        nonlocal cancelled
+        nonlocal confirmed
+        confirmed = True
         for field in fields:
             result[field['attribute']] = result[field['attribute']].get()
         root.destroy()
 
     def on_cancel():
-        nonlocal cancelled
-        cancelled = True
+        nonlocal confirmed
+        confirmed = False
         root.destroy()
 
     ok_button = ttk.Button(button_frame, text="OK", command=on_ok)
@@ -181,11 +187,10 @@ def custom_popup_input(title: str, message: str, fields: List[Dict[str, str]], a
 
     root.mainloop()
 
-    if cancelled:
-        return None, True
+    if confirmed:
+        return result, True
     else:
-        return result, False
-
+        return None, False
 
 def popup_with_copy(title: str, message: str, copy_data: str, always_on_top:bool=True) -> bool:
     '''Takes 3 parameters, window title, window message, and copy_data, which is the data that is copied to the user's clipboard.'''

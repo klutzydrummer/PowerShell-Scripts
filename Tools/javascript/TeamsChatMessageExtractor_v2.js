@@ -352,7 +352,7 @@ window._my_custom_methods.domToMarkdown = function domToMarkdown(node, indentLev
         case 'strong':
             return `**${node.textContent}**`;
         case 'a':
-            result += node.hasOwnProperty("getAttribute") ? `[${node.textContent}](${node.getAttribute('href')})` : node?.textContent;
+            result += `[${node.textContent}](${node.getAttribute('href')})`;
             return result;
         case 'br':
             return '';

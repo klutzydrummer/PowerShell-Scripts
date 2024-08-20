@@ -119,7 +119,7 @@ if __name__ == "__main__":
             default_value = json_import.get(attribute)
             if default_value is not None:
                 question['value'] = default_value
-    result, confirmed = custom_popup_input("DCR Template Info", "Please enter details you already have:", dcr_questions)
+    result, _ = custom_popup_input("DCR Template Info", "Please enter details you already have:", dcr_questions)
 
     check_empty = lambda x: None if x == "" else x
     def get_setting(attribute):
@@ -153,25 +153,23 @@ if __name__ == "__main__":
 
     found_data_questions_answers_string = "\r\n".join(["{question_number}. {question}\n{answer}".format(question_number=i+1, question=value.get("label"), answer=get_answers(key, 2)) for i, (key, value) in enumerate(settings_found_keys.items())])
     missing_data_questions_string = "\r\n".join(["{question_number}. {question}".format(question_number=i+1, question=value.get("label")) for i, value in enumerate(settings_missing_keys.values())])
-
     text_output = f"""# Gathered Data
-    {found_data_questions_answers_string}
+{found_data_questions_answers_string}"""
 
-    # Missing Data
-    {missing_data_questions_string}
-    """
+    if missing_data_questions_string != "":
+        text_output += f"\r\n\r\n# Missing Data\r\n{missing_data_questions_string}"
     
     print(text_output)
-
+    initialExportDir = import_path.parent if import_path is not None else notes_path
     save_path = file_folder_picker(
         title = "Save DCR text and JSON, will save with defaults if nothing saved.",
         mode = "file",
         action = "save",
         file_types = [("All files", "*.*")],
-        initial_dir = notes_path,
+        initial_dir = initialExportDir,
         default_extension = ""
     )
-    output_path = dcr_path / "dcr_template_output" if save_path is None else Path(save_path)
+    output_path = dcr_path / "dcr_template_output" if save_path is None else Path(save_path).with_suffix('')
     output_formats = [(".txt", text_output), (".json", json_output)]
     for format, data in output_formats:
         with open(str(output_path.with_suffix(format)), 'w', encoding='utf-8', errors='ignore') as f:
