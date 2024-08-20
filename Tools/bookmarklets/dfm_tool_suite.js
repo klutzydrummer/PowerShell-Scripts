@@ -787,6 +787,130 @@ window._my_custom_methods.get_case_contacts = async function get_case_contacts()
     await window._my_custom_methods.sleep(1500);
     return output;
 };
+window._my_custom_methods.get_icm_cases = async function get_icm_cases() {
+    async function ensureDocumentActive() {
+        return new Promise(resolve => {
+            if (document.hidden) {
+                document.addEventListener('visibilitychange', function onVisibilityChange() {
+                    if (!document.hidden) {
+                        document.removeEventListener('visibilitychange', onVisibilityChange);
+                        resolve();
+                    }
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    await ensureDocumentActive();
+    function parseRowInfo(rowInfo) {
+        const regex = /Rows:\s*(\d+)\s*-\s*(\d+)\s*of\s*(\d+)/;
+        const match = rowInfo.match(regex);
+
+        if (match) {
+            const start = parseInt(match[1], 10);
+            const end = parseInt(match[2], 10);
+            const total = parseInt(match[3], 10);
+
+            return { start, end, total };
+        } else {
+            throw new Error('Invalid input format');
+        }
+    }
+    var icmElement = document.querySelector('[aria-label="My IcMs"]');
+    var icmContainer = icmElement.parentElement.parentElement.parentElement.parentElement.parentElement;
+    var viewport = icmElement.querySelector('[class="ag-center-cols-viewport"]');
+    var countElement = (()=>{return icmContainer.querySelector('[class^="statusTextContainer"]')});
+    var get_current_row_index = (()=> {return parseRowInfo(countElement().innerText);});
+    var first_page = (async ()=>{
+      var arrow = icmContainer.querySelector('[aria-label="Load first page"]');
+      var before_click = get_current_row_index();
+      if (arrow.getAttribute('aria-disabled') === 'true') {
+        return get_current_row_index();
+      } else {
+        arrow.click();
+      }
+      var after_click = get_current_row_index();
+      while (before_click.start === after_click.start) {
+        await window._my_custom_methods.sleep(500);
+        after_click = get_current_row_index();
+      };      
+      return after_click;
+    });
+    var previous_page = (async ()=>{
+      var arrow = icmContainer.querySelector('[aria-label="Previous page"]');
+      var before_click = get_current_row_index();
+      if (arrow.getAttribute('aria-disabled') === 'true') {
+        return get_current_row_index();
+      } else {
+        arrow.click();
+      }
+      var after_click = get_current_row_index();
+      while (before_click.start === after_click.start) {
+        await window._my_custom_methods.sleep(500);
+        after_click = get_current_row_index();
+      };      
+      return after_click;
+    });
+    var next_page = (async ()=>{
+      var arrow = icmContainer.querySelector('[aria-label="Next page"]');
+      var before_click = get_current_row_index();
+      if (arrow.getAttribute('aria-disabled') === 'true') {
+        return get_current_row_index();
+      } else {
+        arrow.click();
+      }
+      var after_click = get_current_row_index();
+      while (before_click.start === after_click.start) {
+        await window._my_custom_methods.sleep(500);
+        after_click = get_current_row_index();
+      };      
+      return after_click;
+    });
+    var row_info = await first_page();
+
+    await window._my_custom_methods.sleep(500);
+    icmContainer.requestFullscreen();
+
+    var column_mappings = {
+        'msdfm_id':'id',
+        'msdfm_title':'title',
+        'msdfm_icmurl':'url',
+        'msdfm_numberoflinkedcases':'linked_cases'
+    };
+
+    var columns = [
+        'msdfm_id',
+        'msdfm_title',
+        'msdfm_icmurl',
+        'msdfm_numberoflinkedcases'
+    ];
+    var index_check = (()=>{
+      var indexes = get_current_row_index();
+      return indexes.end !== indexes.total;
+      })
+    var output = [];
+    await window._my_custom_methods.sleep(2000);
+    while (index_check()) {
+      var rowsElements = viewport.querySelectorAll('[role="row"]');
+      for (let row of rowsElements) {
+          var rowData = {};
+          for (let column_id of columns) {
+              var selector = `[col-id="${column_id}"]`;
+              var cell = row.querySelector(selector);
+              rowData[column_mappings[column_id]] = cell?.innerText;
+              rowData['element'] = cell;
+          }
+          output.push(rowData);
+      }
+      await window._my_custom_methods.sleep(1000);
+      await next_page();
+    }
+
+    document.exitFullscreen();
+    return output;
+};
 window._my_custom_methods.get_and_store_case_contacts = async function get_and_store_case_contacts(parentElement) {
     var className = 'stored_case_contacts';
     var classSelector = `[class="${className}"]`;
