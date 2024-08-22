@@ -1106,6 +1106,7 @@ window._my_custom_methods.get_icm_cases = async function get_icm_cases() {
         var aElement = document.createElement('a');
         aElement.href = element.innerText;
         aElement.innerText = element.innerText;
+        aElement.setAttribute('target', "_blank");
         return aElement;
     });
     var column_processing = {
@@ -1413,46 +1414,60 @@ window._my_custom_methods.remove_enhancement_flags = function remove_enhancement
     ].map(selector=>`[class="${selector}"]`).join(",");
     document.querySelectorAll(enhancerFlagElementsSelector).forEach(element=>element.remove());
 };
+window._my_custom_methods.get_scrollable_case_element = function get_scrollable_case_element() {
+    return document.querySelector('[id^="mainContentContainer"]').childNodes[1];
+};
 window._my_custom_methods.case_view_header_enhancer = async function case_view_header_enhancer() {
     var caseViewHeader = document.querySelector('[data-id="form-header"]');
     if (!caseViewHeader) return;
-    var caseViewHeaderDock = document.createElement('div');
-    caseViewHeaderDock.className = "pa-a pa-st flexbox";
-    caseViewHeader.insertAdjacentElement('afterend', caseViewHeaderDock);
     var current_page_type = window._my_custom_methods.get_page_type();
     var page_enhanced_marker_classname = 'case_view_enhanced_marker';
     var page_enhanced_marker_check = document.body.querySelectorAll(`[class="${page_enhanced_marker_classname}"]`);
     var page_enhanced_marker_parent = document.querySelector('[data-id="Primary_contact_section"]');
     var caseContactStoreParent = document.querySelector('[data-lp-id="MscrmControls.Containers.ReferencePanelControl|MscrmControls.Containers.ReferencePanelControl|incident"]');
     if (current_page_type == 'case' && page_enhanced_marker_check.length == 0) {
-        var caseInfoHeaderParts = Array.from(caseViewHeader.querySelector('[id^="headerControlsList"]').querySelectorAll('[data-preview_orientation="column"]'));
-        var caseNumberElement = caseInfoHeaderParts[0];
-        var caseSeverityElement = caseInfoHeaderParts[1];
-        var caseStatusElement = caseInfoHeaderParts[2];
-        var caseAssignedToElement = caseInfoHeaderParts[3];
-        var caseNumberMatch = caseNumberElement.textContent.match(/(\d{16})/);
+        var caseViewHeaderDock = document.createElement('div');
+        caseViewHeaderDock.className = "pa-a pa-st flexbox";
+        caseViewHeader.insertAdjacentElement('afterend', caseViewHeaderDock);
+        var get_case_info_elements = (()=>{
+            var caseInfoHeaderParts = Array.from(caseViewHeader.querySelector('[id^="headerControlsList"]').querySelectorAll('[data-preview_orientation="column"]'));
+            return {
+                'caseNumberElement': caseInfoHeaderParts[0],
+                'caseSeverityElement': caseInfoHeaderParts[1],
+                'caseStatusElement': caseInfoHeaderParts[2],
+                'caseAssignedToElement': caseInfoHeaderParts[3],
+                'caseTitleElement': caseViewHeader.querySelector('[data-id="header_title"]')
+            };
+        });
+        var caseInfoHeaderParts = get_case_info_elements();
+        var caseNumberMatch = caseInfoHeaderParts.caseNumberElement.textContent.match(/(\d{16})/);
         var caseNumber = caseNumberMatch.length > 0 ? caseNumberMatch[0] : '';
         window._my_custom_methods.update_current_case_number(caseNumber);
         var recent_email_case_number = window._my_custom_methods.get_recent_email_case_number();
         var last_page_type = window._my_custom_methods.get_previous_page_type();
         if (recent_email_case_number !== null && recent_email_case_number !== caseNumber && last_page_type == 'email') window._my_custom_methods.showModal("Be careful! This is not the case you just sent an email for!");
-        caseNumberElement.onclick = ()=>{
+        caseInfoHeaderParts.caseNumberElement.onclick = ()=>{
             var textToCopy = caseNumber;
             window._my_custom_methods.copyToClipboard(textToCopy);
         };
-        var caseSeverity = 'Severity '+ caseStatusElement.textContent.replace('Severity', '');
-        caseSeverityElement.onclick = ()=>{
+        caseInfoHeaderParts.caseSeverityElement.onclick = ()=>{
+            var caseInfoHeaderParts = get_case_info_elements();
+            var caseSeverity = 'Severity '+ caseInfoHeaderParts.caseStatusElement.textContent.replace('Severity', '');
             var textToCopy = caseSeverity;
             window._my_custom_methods.copyToClipboard(textToCopy);
         };
-        var caseStatus = caseStatusElement.textContent.replace('Status reason', '');
-        caseStatusElement.onclick = ()=>{
+        var caseStatus = caseInfoHeaderParts.caseStatusElement.textContent.replace('Status reason', '');
+        caseInfoHeaderParts.caseStatusElement.onclick = ()=>{
+            var caseInfoHeaderParts = get_case_info_elements();
+            var caseStatus = caseInfoHeaderParts.caseStatusElement.textContent.replace('Status reason', '');
             var textToCopy = caseStatus;
             window._my_custom_methods.copyToClipboard(textToCopy);
         };
-        var caseTitleElement = caseViewHeader.querySelector('[data-id="header_title"]');
-        var caseTitle = caseTitleElement.textContent.replace('- Saved', '');
-        caseTitleElement.onclick = ()=>{
+        var caseTitle = caseInfoHeaderParts.caseTitleElement.textContent.replace('- Saved', '');
+        caseInfoHeaderParts.caseTitleElement.onclick = ()=>{
+            var caseInfoHeaderParts = get_case_info_elements();
+            var caseTitleElement = caseViewHeader.querySelector('[data-id="header_title"]');
+            var caseTitle = caseInfoHeaderParts.caseTitleElement.textContent.replace('- Saved', '');
             var textToCopy = caseTitle;
             window._my_custom_methods.copyToClipboard(textToCopy);
         };
@@ -1473,9 +1488,9 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
         mainContactsCopyButton.id = mainContactsCopyButton_id_string;
         
         var add_mainContactsCopyButton_onclick = async ()=>{
-            var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
             var items = [
-                {text: 'Primary Contact', onClick: (()=>{
+                {text: 'Primary Contact', onClick: (async ()=>{
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
                     var primary_search = case_contacts.filter(contact=>contact.role.toLowerCase() == 'primary');
                     var output = primary_search.length > 0 ? primary_search[0].email : null;
                     if (output !== null) {
@@ -1484,7 +1499,8 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                         window.alert("Primary contact not found.");
                     };
                 })},
-                {text: 'CSAM', onClick: (()=>{
+                {text: 'CSAM', onClick: (async ()=>{
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
                     var search = case_contacts.filter(contact=>contact.role.toLowerCase().includes('csam'));
                     var output = search.length > 0 ? search.map(contact=>contact.email).join("; ") : null;
                     if (output !== null) {
@@ -1493,7 +1509,8 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                         window.alert("CSAM contact not found.");
                     };
                 })},
-                {text: 'IM', onClick: (()=>{
+                {text: 'IM', onClick: (async ()=>{
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
                     var search = case_contacts.filter(contact=>contact.role.toLowerCase().includes('incident manager'));
                     var output = search.length > 0 ? search.map(contact=>contact.email).join("; ") : null;
                     if (output !== null) {
@@ -1502,7 +1519,26 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                         window.alert("Incident Manager contact not found.");
                     };
                 })},
-                {text: 'Primary/CSAM/IM', onClick: (()=>{
+                {text: 'CSAM/IM', onClick: (async ()=>{
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+                    var role_strings = [
+                        "csam",
+                        "incident manager"
+                    ];
+                    var search = case_contacts.filter(contact=>role_strings.includes(contact.role.toLowerCase()));
+                    var output = search.length > 0 ? search.sort((a, b) => {
+                        const aIndex = role_strings.findIndex(role => a.role.toLowerCase().includes(role));
+                        const bIndex = role_strings.findIndex(role => b.role.toLowerCase().includes(role));
+                        return aIndex - bIndex;
+                    }).map(contact=>contact.email).join("; ") : null;
+                    if (output !== null) {
+                        window._my_custom_methods.copyToClipboard(output);
+                    } else {
+                        window.alert("Error.");
+                    };
+                })},
+                {text: 'Primary/CSAM/IM', onClick: (async ()=>{
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
                     var role_strings = [
                         "primary",
                         "csam",
@@ -1534,18 +1570,28 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
             await window._my_custom_methods.display_icm_cases({"linked_case": caseNumber});
         });
         if (!document.getElementById(getIcmDataButton.id)) caseViewHeaderDock.appendChild(getIcmDataButton);
+        
+        var expandTimelineButton = document.createElement('button');
+        expandTimelineButton.textContent = "Expand Timeline";
+        var expandTimelineButton_id_string = "expand_timeline_button";
+        expandTimelineButton.id = expandTimelineButton_id_string;
+        expandTimelineButton.onclick = ()=>{
+            window._my_custom_methods.expandTimelineElements();
+        };
+        if (!document.getElementById(expandTimelineButton_id_string)) caseViewHeaderDock.appendChild(expandTimelineButton);
 
         var startNewNotesButton = document.createElement('button');
         startNewNotesButton.textContent = "New Notes Import String";
         startNewNotesButton.id = "new_notes_import_button";
         startNewNotesButton.onclick = async ()=>{
             /* Async calls first await later */;
-            var case_contacts_promise = window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+            var caseInfoHeaderParts = get_case_info_elements();
+            var caseStatus = caseInfoHeaderParts.caseStatusElement.textContent.replace('Status reason', '');
+            var case_contacts = await window._my_custom_methods.get_and_store_case_contacts();
             var restrictedInformationContainerElement = document.querySelector('[aria-label="Restricted information"]');
             var infoExpandButton = restrictedInformationContainerElement.querySelector('button');
             var targetelementSelector = '[aria-label="Customer Statement"]';
             var customerStatementElement_promise = window._my_custom_methods.clickAndWaitForElement(clickElement=infoExpandButton, targetContainer=document, targetSelector=targetelementSelector, timeout = 5000)
-            var case_contacts = await case_contacts_promise;
             var primaryContact = case_contacts.filter(contact=>contact.role == 'Primary');
             primaryContact = (primaryContact.length > 0) ? primaryContact[0] : {'email': ''};
             var customerStatementElement = await customerStatementElement_promise;
@@ -1564,15 +1610,6 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
         };
         if (!document.getElementById(startNewNotesButton.id)) caseViewHeaderDock.appendChild(startNewNotesButton);
 
-        var expandTimelineButton = document.createElement('button');
-        expandTimelineButton.textContent = "Expand Timeline";
-        var expandTimelineButton_id_string = "expand_timeline_button";
-        expandTimelineButton.id = expandTimelineButton_id_string;
-        expandTimelineButton.onclick = ()=>{
-            window._my_custom_methods.expandTimelineElements();
-        };
-        if (!document.getElementById(expandTimelineButton_id_string)) caseViewHeaderDock.appendChild(expandTimelineButton);
-
         var lastNoteImportButton = document.createElement('button');
         lastNoteImportButton.textContent = "Last Note Import";
         var lastNoteImportButton_id_string = "last_note_import_button";
@@ -1581,6 +1618,18 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
             window._my_custom_methods.lastcaseImportString();
         };
         if (!document.getElementById(lastNoteImportButton_id_string)) caseViewHeaderDock.appendChild(lastNoteImportButton);
+
+        
+        var scrollNotesButton = document.createElement('button');
+        scrollNotesButton.textContent = "Enter case note";
+        scrollNotesButton.id = "scroll_notes_button";
+        scrollNotesButton.onclick = async ()=>{
+            window._my_custom_methods.get_scrollable_case_element().scrollTo(0,0);
+            var noteControlElement = await window._my_custom_methods.wait_for_element(element=document, selector='[data-id="notescontrol-timeline_wall_container"]');
+            noteControlElement.querySelector('[id="create_module_placeholdernotescontrol"]').scrollIntoViewIfNeeded();
+        };
+        window._my_custom_methods.make_case_contacts_click_copy();
+        if (!document.getElementById(scrollNotesButton.id)) caseViewHeaderDock.appendChild(scrollNotesButton);
 
         var openLocalNotesButton = document.createElement('button');
         openLocalNotesButton.textContent = "Open notes folder";
