@@ -147,100 +147,98 @@ window._my_custom_methods.domToHtml = function domToHtml(node, banList = []) {
     return rootElement;
 };
 
-window._my_custom_methods.TeamsChatMessageExtractor = function TeamsChatMessageExtractor() {
-    window._my_custom_methods.extractChatMessageDetails = function extractChatMessageDetails(chatElement) {
-        let referenceAuthorToken = "<REFERENCE_AUTHOR>";
-        let referenceTimeToken = "<REFERENCE_TIME>";
-        let referenceBodyToken = "<REFERENCE_BODY>";
-        let divider = chatElement.querySelector('[class^="fui-Divider"]');
-        let controlMessage = window._my_custom_methods.TeamsAutoBackupSelector(chatElement, '[data-tid="control-message-renderer"]');
-        if (divider !== null) {
-            return null;
-        };
-        if (controlMessage !== null) {
-            let chatTime = null;
-            let chatAuthor = "System";
-            let chatBodyString = Array.from(controlMessage.childNodes[0].childNodes).map((item) => item?.textContent).join("");
-            let chatBodyElement = document.createElement('span');
-            chatBodyElement.textContent = chatBodyString;
-            let chatBody = window._my_custom_methods.domToHtml(chatBodyElement);
-            let referencedMessage = null;
-            let reactionCounts = null;
-            return {
-                time: chatTime,
-                author: chatAuthor,
-                message: chatBody,
-                referencedMessages: referencedMessage,
-                reactions: reactionCounts,
-                isEdited: null
-            }
-        };
-        let chatBodyElement = chatElement.querySelector('[data-tid="chat-pane-message"]').querySelector('div');
-        let chatTime = window._my_custom_methods.TeamsAutoBackupSelector(chatElement, '[class^="fui-ChatMessage__timestamp"]')?.dateTime;
-        let chatAuthor = chatElement?.querySelector('[data-tid="message-author-name"]')?.textContent || "Unknown Author";
-        let referenceWrappers = chatElement?.querySelectorAll('[data-track-module-name="messageQuotedReply"]');
-        var hasReference = false;
-        let reference_info = [];
-        if (referenceWrappers !== null) {
-            hasReference = true;
-            for (referenceWrapper of referenceWrappers) {
-                let referenceAuthor;
-                let referenceTime;
-                let referenceBody;
-                let referenceSpans = referenceWrapper.querySelectorAll('span');
-                if (referenceSpans.length >= 3) {
-                    referenceAuthor = referenceSpans[0]?.textContent.trim();
-                    referenceTime = window._my_custom_methods.toJSONFriendlyFormat(window._my_custom_methods.parseDateTimeWithTimeZone(referenceSpans[1]?.textContent.trim()));
-                    referenceBody = referenceSpans[2]?.textContent.trim();
-                };
-                reference_info.push({referenceAuthor, referenceTime, referenceBody});
-            }
-        };
-        
-        var referenceReplacementValue = document.createElement('div');
-        referenceReplacementValue.setAttribute('custom-data-track-module-name', 'messageQuotedReply');
-        referenceReplacementValue.textContent = '<REFERENCE>';
+window._my_custom_methods.getChatMessageElements = function getChatMessageElements() {
+    var chat_pane = document.getElementById("chat-pane-list");
+    var chatElements = chat_pane.children;
+    return Array.from(chatElements);
+};
 
-        let banList = [
-            { 'attribute': 'data-tid',               'value': 'url-preview' },
-            { 'attribute': 'data-tid',               'value': 'atp-safelink' },
-            { 'attribute': 'data-track-module-name', 'value': 'messageQuotedReply', 'replaceValue': referenceReplacementValue }
-        ];
-
-        let chatBody = window._my_custom_methods.domToHtml(node=chatBodyElement, banList=banList);
-        
-        let referencedMessages = (hasReference) 
-            ? reference_info
-            : null;
-    
-        let reactionCountsElements = [...chatElement.querySelectorAll('[data-tid$="-count"]')];
-        let reactionCounts = reactionCountsElements.length > 0 
-        ? reactionCountsElements.reduce((counts, each) => {
-            counts[each.getAttribute('data-tid').replace('-count', '')] = each.textContent;
-            return counts;
-        }, {})
-        : null;
-    
-        let output = {
+window._my_custom_methods.extractChatMessageDetails = function extractChatMessageDetails(chatElement) {
+    let referenceAuthorToken = "<REFERENCE_AUTHOR>";
+    let referenceTimeToken = "<REFERENCE_TIME>";
+    let referenceBodyToken = "<REFERENCE_BODY>";
+    let divider = chatElement.querySelector('[class^="fui-Divider"]');
+    let controlMessage = window._my_custom_methods.TeamsAutoBackupSelector(chatElement, '[data-tid="control-message-renderer"]');
+    if (divider !== null) {
+        return null;
+    };
+    if (controlMessage !== null) {
+        let chatTime = null;
+        let chatAuthor = "System";
+        let chatBodyString = Array.from(controlMessage.childNodes[0].childNodes).map((item) => item?.textContent).join("");
+        let chatBodyElement = document.createElement('span');
+        chatBodyElement.textContent = chatBodyString;
+        let chatBody = window._my_custom_methods.domToHtml(chatBodyElement);
+        let referencedMessage = null;
+        let reactionCounts = null;
+        return {
             time: chatTime,
             author: chatAuthor,
             message: chatBody,
-            referencedMessages: referencedMessages,
+            referencedMessages: referencedMessage,
             reactions: reactionCounts,
             isEdited: null
-        };
-        return output;
+        }
+    };
+    let chatBodyElement = chatElement.querySelector('[data-tid="chat-pane-message"]').querySelector('div');
+    let chatTime = window._my_custom_methods.TeamsAutoBackupSelector(chatElement, '[class^="fui-ChatMessage__timestamp"]')?.dateTime;
+    let chatAuthor = chatElement?.querySelector('[data-tid="message-author-name"]')?.textContent || "Unknown Author";
+    let referenceWrappers = chatElement?.querySelectorAll('[data-track-module-name="messageQuotedReply"]');
+    var hasReference = false;
+    let reference_info = [];
+    if (referenceWrappers !== null) {
+        hasReference = true;
+        for (referenceWrapper of referenceWrappers) {
+            let referenceAuthor;
+            let referenceTime;
+            let referenceBody;
+            let referenceSpans = referenceWrapper.querySelectorAll('span');
+            if (referenceSpans.length >= 3) {
+                referenceAuthor = referenceSpans[0]?.textContent.trim();
+                referenceTime = window._my_custom_methods.toJSONFriendlyFormat(window._my_custom_methods.parseDateTimeWithTimeZone(referenceSpans[1]?.textContent.trim()));
+                referenceBody = referenceSpans[2]?.textContent.trim();
+            };
+            reference_info.push({referenceAuthor, referenceTime, referenceBody});
+        }
     };
     
+    var referenceReplacementValue = document.createElement('div');
+    referenceReplacementValue.setAttribute('custom-data-track-module-name', 'messageQuotedReply');
+    referenceReplacementValue.textContent = '<REFERENCE>';
+
+    let banList = [
+        { 'attribute': 'data-tid',               'value': 'url-preview' },
+        { 'attribute': 'data-tid',               'value': 'atp-safelink' },
+        { 'attribute': 'data-track-module-name', 'value': 'messageQuotedReply', 'replaceValue': referenceReplacementValue }
+    ];
+
+    let chatBody = window._my_custom_methods.domToHtml(node=chatBodyElement, banList=banList);
     
-    
-    var chat_pane = document.getElementById("chat-pane-list");
-    var chatElements = chat_pane.children;
-    var targetIndex = chatElements.length;
-    var each = chatElements[targetIndex];
-    var chatElement = each;
-    var banned_character_codes = [55357, 56897];
-    var chatElementsArray = Array.from(chatElements);
+    let referencedMessages = (hasReference) 
+        ? reference_info
+        : null;
+
+    let reactionCountsElements = [...chatElement.querySelectorAll('[data-tid$="-count"]')];
+    let reactionCounts = reactionCountsElements.length > 0 
+    ? reactionCountsElements.reduce((counts, each) => {
+        counts[each.getAttribute('data-tid').replace('-count', '')] = each.textContent;
+        return counts;
+    }, {})
+    : null;
+
+    let output = {
+        time: chatTime,
+        author: chatAuthor,
+        message: chatBody,
+        referencedMessages: referencedMessages,
+        reactions: reactionCounts,
+        isEdited: null
+    };
+    return output;
+};
+
+window._my_custom_methods.TeamsChatMessageExtractor = function TeamsChatMessageExtractor() {
+    var chatElementsArray = window._my_custom_methods.getChatMessageElements();
     var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item))
     console.log(pre_output);
     pre_output = pre_output.filter(item => item !== null).filter(item => item?.author !== null);
@@ -821,28 +819,77 @@ window._my_custom_methods.createModal = function createModal(items, id) {
         padding: 8px 0;
         cursor: pointer;
     `;
-    element.addEventListener('click', item.onClick);
+    element.addEventListener('mousedown', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        item.onClick();
+    });
     modal.appendChild(element);
     });
 
     document.body.appendChild(modal);
     return modal;
 };
+window._my_custom_methods.addCopyButton = function addCopyButton(chatElement) {
+    var chatMessageElement = chatElement.querySelector('[data-tid="chat-pane-message"]');
+    if (!chatMessageElement) return;
+    var copy_button = document.createElement('button');
+    copy_button.id = 'teams_copy_button';
+    
+    if (chatElement.querySelector(`[id="${copy_button.id}"]`) !== null) return;
 
+    copy_button.innerText = '📋';
+    
+    /* Apply styles to make the button sleek, translucent, and unobtrusive */;
+    copy_button.style.backgroundColor = 'rgba(128, 128, 128, 0.5)'; /* translucent grey */;
+    copy_button.style.border = 'none'; /* remove border */;
+    copy_button.style.borderRadius = '5px'; /* rounded corners */;
+    copy_button.style.padding = '5px'; /* small padding for sleekness */;
+    copy_button.style.cursor = 'pointer'; /* pointer cursor on hover */;
+    copy_button.style.fontSize = '14px'; /* slightly smaller font size */;
+    copy_button.style.opacity = '0.8'; /* make the button slightly translucent */;
+    copy_button.style.transition = 'opacity 0.2s'; /* smooth transition on hover */;
+    //copy_button.style.position = 'absolute'; /* position the button over the element */;
+    //copy_button.style.right = '10px'; /* adjust the button to be near the right edge */;
+    //copy_button.style.top = '50%'; /* vertically center the button */;
+    //copy_button.style.transform = 'translateY(-50%)'; /* fine-tune centering */;
+
+    /* Add hover effect to increase visibility when hovered */;
+    copy_button.onmouseover = () => { copy_button.style.opacity = '1'; };
+    copy_button.onmouseout = () => { copy_button.style.opacity = '0.8'; };
+
+    copy_button.onclick = (() => {
+        var old_format = (window.hasOwnProperty("_my_modal_settings") && window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : "markdown";    
+        var extractedMessages = [window._my_custom_methods.extractChatMessageDetails(chatElement)];
+        var chosen_format = (window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : 'markdown'
+        window._my_modal_settings["Output Format"] = 'markdown';
+        var formatted_messages = window._my_custom_methods.process_messages(extractedMessages, base64_flag=base64_flag);
+        window._my_custom_methods.copyToClipboard(formatted_messages);
+        window._my_custom_methods.showModal(modal_message+`"${chosen_format}"`+'.');
+        window._my_modal_settings["Output Format"] = old_format;
+    });
+    chatMessageElement.insertAdjacentElement('afterend', copy_button);
+};
+window._my_custom_methods.addCopyButtonAll = function addCopyButtonAll() {
+    var chatElementsArray = window._my_custom_methods.getChatMessageElements();
+    chatElementsArray.forEach(chatElement => window._my_custom_methods.addCopyButton(chatElement));
+};
 window._my_custom_methods.setupDropdown = function setupDropdown(items, id) {
     const button = window._my_custom_methods.createDropdownButton(id);
     const modal = window._my_custom_methods.createModal(items, id);
 
-    button.addEventListener('click', () => {
-    if (modal.style.display === 'none') {
-        modal.style.display = 'block';
-        /* Position the modal below the button */;
-        const rect = button.getBoundingClientRect();
-        modal.style.top = `${rect.bottom}px`;
-        modal.style.left = `${rect.left}px`;
-    } else {
-        modal.style.display = 'none';
-    }
+    button.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (modal.style.display === 'none') {
+            modal.style.display = 'block';
+            /* Position the modal below the button */;
+            const rect = button.getBoundingClientRect();
+            modal.style.top = `${rect.bottom}px`;
+            modal.style.left = `${rect.left}px`;
+        } else {
+            modal.style.display = 'none';
+        }
     });
 
     /* Close the modal when clicking outside */;
@@ -962,6 +1009,50 @@ window._my_custom_methods.initialize_settings(window._my_custom_methods.settings
 if (!window._my_custom_menu) {
     window._my_custom_menu = {};
 };
+window._my_custom_methods.getSelectedTopMostElements = function getSelectedTopMostElements(selector) {
+    const selection = window.getSelection();
+    const selectedElements = [];
+
+    if (!selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        const commonAncestor = range.commonAncestorContainer;
+
+        let nodes;
+        if (commonAncestor.nodeType === Node.ELEMENT_NODE) {
+            nodes = Array.from(commonAncestor.querySelectorAll(selector));
+        } else {
+            nodes = [commonAncestor.parentNode].filter(node => node.matches(selector));
+        }
+
+        nodes.forEach(node => {
+            // Check if the node is fully or partially within the selection
+            if (selection.containsNode(node, true)) {
+                // Check if it is a top-most element by ensuring no parent matches the selector
+                const parentMatches = selectedElements.some(parent => parent.contains(node));
+                if (!parentMatches) {
+                    selectedElements.push(node);
+                }
+            }
+        });
+    }
+
+    return selectedElements;
+};
+
+window._my_custom_methods.copySelectedMessages = function copySelectedMessages(images=false) {
+    var selectedElements = window._my_custom_methods.getSelectedTopMostElements('[class^="fui-Flex ___"]');
+    if (selectedElements.length == 0) return;
+    var extractedMessages = selectedElements.map(chatElement=>window._my_custom_methods.extractChatMessageDetails(chatElement)).filter(item => item !== null).filter(item => item?.author !== null);
+    extractedMessages
+    var old_format = (window.hasOwnProperty("_my_modal_settings") && window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : "markdown";
+    var chosen_format = 'markdown';
+    var formatted_messages = window._my_custom_methods.process_messages(extractedMessages, base64_flag=images);
+    window._my_custom_methods.copyToClipboard(formatted_messages);
+    let modal_message = (base64_flag == true) ? 'Chat messages copied with images to clipboard as ' : 'Chat messages copied without images to clipboard as ';
+    window._my_custom_methods.showModal(modal_message+`"${chosen_format}"`+'.');
+    window._my_modal_settings["Output Format"] = old_format;
+};
+
 window._my_custom_methods.setting_click = (() => {
     window._my_custom_methods.showModalSettings("Settings", window._my_custom_methods.settings_list());
 });
@@ -976,14 +1067,21 @@ window._my_custom_methods.copyTeamsMessages = ((base64_flag, modal_message) => {
         console.error("Error in window._my_custom_methods.TeamsChatMessageExtractor:", error);
     }
 });
+window._my_custom_data.setting_seperator = {text: '---', onClick: (()=>{})};
 window._my_custom_menu.items = [
     {text: 'Settings', onClick: window._my_custom_methods.setting_click},
+    window._my_custom_data.setting_seperator,
     {text: 'Copy Teams Messages with images', onClick: ()=>{window._my_custom_methods.copyTeamsMessages(base64_flag=true, modal_message='Chat messages copied with images to clipboard as ')}},
-    {text: 'Copy Teams Messages without images', onClick: ()=>{window._my_custom_methods.copyTeamsMessages(base64_flag=false, modal_message='Chat messages copied without images to clipboard as ')}}
+    {text: 'Copy Teams Messages without images', onClick: ()=>{window._my_custom_methods.copyTeamsMessages(base64_flag=false, modal_message='Chat messages copied without images to clipboard as ')}},
+    window._my_custom_data.setting_seperator,
+    {text: 'Copy Selected Teams Messages with images', onClick: ()=>{window._my_custom_methods.copySelectedMessages(images=true)}},
+    {text: 'Copy Selected Teams Messages without images', onClick: ()=>{window._my_custom_methods.copySelectedMessages(images=false)}}
+    
 ];
 if (addMenu == true) {
     window._my_custom_methods.mutation_runner = (()=>{
         var menu_check = window._my_custom_methods.getMenu()
+        if (document.querySelector('[id="teams_copy_button"]') === null) window._my_custom_methods.addCopyButtonAll();
         if (!(menu_check.dropdown && menu_check.modal)) {
             var items = (()=>{return window._my_custom_menu.items})()
             window._my_custom_methods.addMenu_func(items);
