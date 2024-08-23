@@ -1,7 +1,7 @@
 javascript:(async ()=>{
     if (!window.customMethods) window.customMethods = {};
     if (!window.customData) window.customData = {};
-    if (window.customData.watcherInterval !== null) clearInterval(window.customData.watcherInterval);
+    if (window.customData.watcherInterval) clearInterval(window.customData.watcherInterval);
     if (!window.customData.current) window.customData.current = {};
     if (!window.customData.previous) window.customData.previous = {};
     if (!window.customData.observers) window.customData.observers = {};
@@ -74,7 +74,7 @@ javascript:(async ()=>{
     customMethods.updateInfo = function updateInfo(key, data) {
         customData.previous[key] = customData.current[key] || {};
         customData.current[key] = { ...data };
-        customData.emitSignal(`update:${key}`, data);
+        customMethods.emitSignal(`update:${key}`, data);
     };
     
     customMethods.getInfo = function getInfo(key) {
@@ -107,7 +107,7 @@ javascript:(async ()=>{
     customMethods.checkForPageChange = async function checkForPageChange() {
         const currentPageType = await customMethods.getPageType();
         const previousPageType = customMethods.getPreviousPageType();
-        const emitSignal = (signalData) => customData.emitSignal('pageChanged', signalData);
+        const emitSignal = (signalData) => customMethods.emitSignal('pageChanged', signalData);
     
         if (currentPageType !== previousPageType) {
             customMethods.updatePageType(currentPageType);
@@ -811,12 +811,18 @@ javascript:(async ()=>{
         const caseNumberMatch = emailSubject.match(/(\d{16})/);
         return caseNumberMatch ? caseNumberMatch[0] : null;
     };
+
+    customMethods.getScrollableCaseElement = async function getScrollableCaseElement() {
+        const mainContentContainer = await customMethods.waitForElementWithRetry(document, '[id^="mainContentContainer"]');
+        return (mainContentContainer) ? mainContentContainer.childNodes[1] : null;
+    };
     
     customMethods.scrollToCaseNotes = async function scrollToCaseNotes() {
-        const caseElement = customMethods.getScrollableCaseElement();
-        caseElement.scrollTo(0, 0);
-        const noteControlElement = await customMethods.waitForElement(document, '[data-id="notescontrol-timeline_wall_container"]');
-        await customMethods.waitForElementWithRetry(noteControlElement, '[id="create_module_placeholdernotescontrol"]').scrollIntoViewIfNeeded();
+        const caseElement = await customMethods.getScrollableCaseElement();
+        if (!caseElement) caseElement.scrollTo(0, 0);
+        const noteControlElement = await customMethods.waitForElementWithRetry(document, '[data-id="notescontrol-timeline_wall_container"]');
+        const noteScrollTarget = await customMethods.waitForElementWithRetry(noteControlElement, '[id="create_module_placeholdernotescontrol"]');
+        if (noteScrollTarget) noteScrollTarget.scrollIntoViewIfNeeded();
     };
     
     customMethods.updateCaseIcmIds = async function updateCaseIcmIds(caseNumber) {
@@ -831,18 +837,18 @@ javascript:(async ()=>{
     // Function to get case IcM IDs
     customMethods.getCaseIcmIds = async function getCaseIcmIds() {
         const maxTry = 10;
-        const icmContainer = await customMethods.waitForElement(document, '[data-id="IcMs_section"]', maxTry);
+        const icmContainer = await customMethods.waitForElementWithRetry(document, '[data-id="IcMs_section"]');
         if (!icmContainer) return [];
 
         await customMethods.tryLoop(async () => {
-            const icmContainer = await customMethods.waitForElement(document, '[data-id="IcMs_section"]', maxTry);
-            icmContainer.scrollIntoViewIfNeeded();
+            const icmContainer = await customMethods.waitForElementWithRetry(document, '[data-id="IcMs_section"]');
+            if (icmContainer) icmContainer.scrollIntoViewIfNeeded();
         }, 5);
 
-        const caseIcmElement = await customMethods.waitForElement(icmContainer, '[data-id="grid-container"]', maxTry);
+        const caseIcmElement = await customMethods.waitForElementWithRetry(icmContainer, '[data-id="grid-container"]');
         if (!caseIcmElement) return [];
 
-        const rowCountElement = await customMethods.waitForElement(caseIcmElement, '[class^="statusTextContainer"]', maxTry);
+        const rowCountElement = await customMethods.waitForElementWithRetry(caseIcmElement, '[class^="statusTextContainer"]');
         if (!rowCountElement) return [];
 
         const rowCount = Number(rowCountElement.innerText.replace('Rows: ', ''));
@@ -865,19 +871,6 @@ javascript:(async ()=>{
         marker.className = className;
         marker.style.visibility = 'hidden';
         parentElement.appendChild(marker);
-    };
-
-    // Function to wait for a specific element
-    customMethods.waitForElement = async function waitForElement(element, selector, maxTry) {
-        let currentTry = 0;
-        let target = await customMethods.waitForElementWithRetry(element, selector);
-        while (!target) {
-            await customMethods.sleep(1000);
-            currentTry++;
-            if (currentTry > maxTry) return null;
-            target = await customMethods.waitForElementWithRetry(element, selector);
-        }
-        return target;
     };
 
     // Function to handle retry logic in loops
