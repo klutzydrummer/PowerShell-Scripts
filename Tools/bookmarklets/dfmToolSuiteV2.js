@@ -19,7 +19,18 @@ javascript:(async ()=>{
     window.customData.slaAlarmSilenceCounter = 0;
     window.customData.alarmSound = new Audio('data:audio/mp3;base64,SUQzBAA...');
 
-    customMethods.waitForElementHelper = async function waitForElementHelper(checkFunction, retryInterval, maxTimeout) {
+    customMethods.isPageLoading = function isPageLoading() {
+        const progressIndicators = document.querySelectorAll('[id="progressIndicator"]');
+        const isNull = progressIndicators === null;
+        if (isNull) return false;
+        return  progressIndicators.length > 0 ? true : false;
+    };
+
+    customMethods.waitForPageLoad = function waitForPageLoad (retryInterval=500, maxTimeout=5000) {
+        await retryWithTimeout((()=>{return (customMethods.isPageLoading() === true) ? null : false}), retryInterval=retryInterval, maxTimeout=maxTimeout);
+    };
+
+    customMethods.retryWithTimeout = async function retryWithTimeout(checkFunction, retryInterval, maxTimeout) {
         const startTime = Date.now();
     
         const checkCondition = () => {
@@ -39,7 +50,7 @@ javascript:(async ()=>{
     };
 
     customMethods.waitForElementWithRetry = async function waitForElementWithRetry(context, selector, retryInterval = 500, maxTimeout = 10000) {
-        return await customMethods.waitForElementHelper(
+        return await customMethods.retryWithTimeout(
             () => context.querySelector(selector),
             retryInterval,
             maxTimeout
@@ -47,7 +58,7 @@ javascript:(async ()=>{
     };
 
     customMethods.waitForAllElementsWithRetry = async function waitForAllElementsWithRetry(context, selector, retryInterval = 500, maxTimeout = 10000) {
-        return await customMethods.waitForElementHelper(
+        return await customMethods.retryWithTimeout(
             () => {
                 const elements = context.querySelectorAll(selector);
                 return elements.length > 0 ? Array.from(elements) : null;
@@ -647,9 +658,9 @@ javascript:(async ()=>{
         const caseViewHeader = await customMethods.waitForElementWithRetry(document, '[data-id="form-header"]');
         if (!caseViewHeader) return;
     
-        const pageType = await customMethods.getPageType()();
+        const pageType = await customMethods.getPageType();
         const markerClassName = 'case-view-enhanced-marker';
-        const markerCheck = await customMethods.waitForElementWithRetry(body, `.${markerClassName}`);
+        const markerCheck = await customMethods.waitForElementWithRetry(document.body, `.${markerClassName}`);
         const markerParent = await customMethods.waitForElementWithRetry(document, '[data-id="Primary_contact_section"]');
     
         if (pageType === 'case' && !markerCheck) {
@@ -730,7 +741,6 @@ javascript:(async ()=>{
         const markerClassName = 'email-view-enhanced-marker';
         const markerCheck = await customMethods.waitForElementWithRetry(body, `.${markerClassName}`);
         const markerParent = await customMethods.waitForElementWithRetry(document, '[id^="Email_section"]');
-    
         if (pageType === 'email' && !markerCheck) {
             const caseNumber = await customMethods.getCaseNumberFromEmailSubject() || customMethods.getCurrentCaseNumber();
             if (caseNumber) customMethods.setRecentEmailCaseNumber(caseNumber);
@@ -962,6 +972,11 @@ javascript:(async ()=>{
         return data;
     };
 
+    customMethods.removeCaseContactStore = function removeCaseContactStore () {
+        const caseContactStorageElements = document.querySelectorAll('[class="case_contact_storage_element"]');
+        if (caseContactStorageElements) caseContactStorageElements.forEach(element=>element.remove());
+    };
+
     // Function to get and store array of objects
     customMethods.getAndStoreArrayOfObjects = async function getAndStoreArrayOfObjects(callback, className, parentElement) {
         const classSelector = `[class="${className}"]`;
@@ -1069,6 +1084,7 @@ javascript:(async ()=>{
     customMethods.headerEnhancer = async function headerEnhancer(pageType) {
         if (customData.enhancementActive) return;
         customData.enhancementActive = true;
+        await customMethods.waitForPageLoad();
         try {
             switch (pageType) {
                 case 'case':

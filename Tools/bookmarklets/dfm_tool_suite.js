@@ -11,30 +11,7 @@ window._my_custom_data.data_harvest_active = false;
 if (!window._my_custom_data.modal_menus) window._my_custom_data.modal_menus = {};
 if (!window._my_custom_data.cache) window._my_custom_data.cache = {};
 if (!window._my_custom_data.icm_ignore_list) window._my_custom_data.icm_ignore_list = ['521569962', '530255719', '508302265', '493942016'];
-if (!window._my_custom_data.icm_case_link_prefill) window._my_custom_data.icm_case_link_prefill = {
-    "2403250040011261":[
-        "493942016",
-        "530875666"
-    ],
-    "2402020040005877":[
-        "508302265"
-    ],
-    "2406270050004742":[
-        "521569962",
-        "530255719",
-        "534802138",
-        "534806928"
-    ],
-    "2405130010004264":[
-        "523584742"
-    ],
-    "2408140030008247":[
-        "534811045"
-    ],
-    "2403180040012580":[
-        "535170649"
-    ]
-};
+if (!window._my_custom_data.icm_case_link_prefill) window._my_custom_data.icm_case_link_prefill = {"2403250040011261":["493942016","530875666"],"2402020040005877":["508302265"],"2406270050004742":["521569962","530255719","534802138","534806928"],"2405130010004264":["523584742"],"2408140030008247":["534811045"],"2403180040012580":["535170649"]};
 if (!window._my_custom_data.icm_case_link_prefill_applied) window._my_custom_data.icm_case_link_prefill_applied = false;
 window._my_custom_data.BASE_NOTES_PATH = "C:\\Users\\v-brhouser\\OneDrive - Microsoft\\Notes\\";
 if (!window._my_custom_menu) window._my_custom_menu = {};
@@ -698,6 +675,19 @@ window._my_custom_menu["email"].items = [
         var textToCopy = window._my_custom_methods.add30DaysAndStringify();
         window._my_custom_methods.copyToClipboard(textToCopy);
     })},
+    {text: 'DCR Closing Email', onClick: (()=>{
+        var template_Text = `Hello,\n\nI'm glad your issue was resolved!\nIf at any point the issue returns, please don't hesitate to reach out!\n\nYou have until {cutoff_date} to re-open this case.\n\n\nEven if the issue returns after that date, the notes will remain available, so that you need only open a new case and provide the case number to the new tach assigned to your case.\n\n\n---\n\n\nIf you would like to rate your support experience please follow this link: {survey_link}\n\n\nThank you,  \nBrandon  \nMicrosoft Teams CSS Support  `;
+        var emailSubjectElement = document.querySelector('[aria-label="Subject"]');
+        var emailSubject = emailSubjectElement.getAttribute('title');
+        var caseNumberMatch = emailSubject.match(/(\d{16})/);
+        var caseNumber = (caseNumberMatch.length > 0) ? caseNumberMatch[0] : "";
+        var surveyLink = `https://admin.microsoft.com/adminportal/home#/support/feedback/${caseNumber}`;
+        var textToCopy = template_Text.replaceAll('\n','\r\n')
+        .replace('{cutoff_date}', window._my_custom_methods.add30DaysAndStringify())
+        .replace('{survey_link}', surveyLink);
+        window._my_custom_methods.copyToClipboard(textToCopy);
+    })},
+    
     {text: 'Generic Closing Email', onClick: (()=>{
         var template_Text = `Hello,\n\nI'm glad your issue was resolved!\nIf at any point the issue returns, please don't hesitate to reach out!\n\nYou have until {cutoff_date} to re-open this case.\n\n\nEven if the issue returns after that date, the notes will remain available, so that you need only open a new case and provide the case number to the new tach assigned to your case.\n\n\n---\n\n\nIf you would like to rate your support experience please follow this link: {survey_link}\n\n\nThank you,  \nBrandon  \nMicrosoft Teams CSS Support  `;
         var emailSubjectElement = document.querySelector('[aria-label="Subject"]');
@@ -1232,6 +1222,10 @@ window._my_custom_methods.get_and_store_icm_cases = async function get_and_store
     };
     return icm_cases;
 };
+window._my_custom_methods.removeCaseContactStore= function () {
+    var caseContactStorageElements = document.querySelectorAll('[class="case_contact_storage_element"]');
+    if (caseContactStorageElements) caseContactStorageElements.forEach(element=>element.remove());
+};
 window._my_custom_methods.get_and_store_case_contacts = async function get_and_store_case_contacts(parentElement) {
     return await window._my_custom_methods.get_and_store_array_of_objects(aCallback=window._my_custom_methods.get_case_contacts, className='case_contact_storage_element', parentElement=parentElement);
 }
@@ -1490,7 +1484,7 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
         var add_mainContactsCopyButton_onclick = async ()=>{
             var items = [
                 {text: 'Primary Contact', onClick: (async ()=>{
-                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts();
                     var primary_search = case_contacts.filter(contact=>contact.role.toLowerCase() == 'primary');
                     var output = primary_search.length > 0 ? primary_search[0].email : null;
                     if (output !== null) {
@@ -1500,7 +1494,7 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                     };
                 })},
                 {text: 'CSAM', onClick: (async ()=>{
-                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts();
                     var search = case_contacts.filter(contact=>contact.role.toLowerCase().includes('csam'));
                     var output = search.length > 0 ? search.map(contact=>contact.email).join("; ") : null;
                     if (output !== null) {
@@ -1510,7 +1504,7 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                     };
                 })},
                 {text: 'IM', onClick: (async ()=>{
-                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts();
                     var search = case_contacts.filter(contact=>contact.role.toLowerCase().includes('incident manager'));
                     var output = search.length > 0 ? search.map(contact=>contact.email).join("; ") : null;
                     if (output !== null) {
@@ -1520,7 +1514,7 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                     };
                 })},
                 {text: 'CSAM/IM', onClick: (async ()=>{
-                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts();
                     var role_strings = [
                         "csam",
                         "incident manager"
@@ -1538,7 +1532,7 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
                     };
                 })},
                 {text: 'Primary/CSAM/IM', onClick: (async ()=>{
-                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts(caseContactStoreParent);
+                    var case_contacts = await window._my_custom_methods.get_and_store_case_contacts();
                     var role_strings = [
                         "primary",
                         "csam",
@@ -1644,6 +1638,8 @@ window._my_custom_methods.case_view_header_enhancer = async function case_view_h
         (async ()=>{
             var case_icm_ids = await window._my_custom_methods.get_case_icm_ids();
             window._my_custom_methods.update_icm_linked_case(linked_case=caseNumber, ids=case_icm_ids);
+
+            await window._my_custom_methods.get_and_store_case_contacts(parentElement=document.querySelector('[id="Copilot_summary_section_10"]'));
         })();
         window._my_custom_methods.createInvisibleElement(text='', className=page_enhanced_marker_classname, parentElement=page_enhanced_marker_parent);
     };

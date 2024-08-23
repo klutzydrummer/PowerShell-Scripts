@@ -5,7 +5,7 @@ function icm_contact_extract(element){
     return output;
 };
 
-var icmComments = [...document.querySelector('[class="ms-List-page"]').childNodes].reverse();
+var icmComments = (Array.from(document.querySelectorAll(".ms-List-page")).map(element=>Array.from(element.querySelectorAll('.ms-List-cell')))).flat().reverse();
 var icmComments_text = icmComments.map(icmComment=>{
     var commentPieces = [...icmComment.childNodes[0].childNodes[0].childNodes[1].childNodes];
     var header = commentPieces[0];

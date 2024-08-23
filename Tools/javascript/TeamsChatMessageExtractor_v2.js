@@ -25,6 +25,10 @@ window._my_custom_methods.itemtype_mappings = function itemtype_mappings(itemtyp
     return (mappings.hasOwnProperty(itemtype)) ? mappings[itemtype] : null;
 };
 
+window._my_custom_methods.sleep = function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+};
+
 window._my_custom_methods.copyToClipboard = function copyToClipboard(text) {
     var tempInput = document.createElement('textarea');
     tempInput.style.position = 'fixed';
@@ -240,7 +244,6 @@ window._my_custom_methods.extractChatMessageDetails = function extractChatMessag
 window._my_custom_methods.TeamsChatMessageExtractor = function TeamsChatMessageExtractor() {
     var chatElementsArray = window._my_custom_methods.getChatMessageElements();
     var pre_output = chatElementsArray.map(item => window._my_custom_methods.extractChatMessageDetails(item))
-    console.log(pre_output);
     pre_output = pre_output.filter(item => item !== null).filter(item => item?.author !== null);
     var output = pre_output;
     return output;
@@ -365,7 +368,6 @@ window._my_custom_methods.domToMarkdown = function domToMarkdown(node, indentLev
                 .join('');
             if (further_processing != null) result = further_processing(result);
             var nodeParent = node?.parentNode;
-            console.log(nodeParent)
             nodeParent = nodeParent !== null ? nodeParent.nodeName.toLowerCase() : 'null';
             var suffix = parentNodeNewlineExclusions.includes(nodeParent) ? '': '\n';
             return result + suffix;
@@ -863,9 +865,9 @@ window._my_custom_methods.addCopyButton = function addCopyButton(chatElement) {
         var extractedMessages = [window._my_custom_methods.extractChatMessageDetails(chatElement)];
         var chosen_format = (window._my_modal_settings.hasOwnProperty("Output Format")) ? window._my_modal_settings["Output Format"] : 'markdown'
         window._my_modal_settings["Output Format"] = 'markdown';
-        var formatted_messages = window._my_custom_methods.process_messages(extractedMessages, base64_flag=base64_flag);
+        var formatted_messages = window._my_custom_methods.process_messages(extractedMessages, base64_flag=true);
         window._my_custom_methods.copyToClipboard(formatted_messages);
-        window._my_custom_methods.showModal(modal_message+`"${chosen_format}"`+'.');
+        window._my_custom_methods.showModal(modal_message=`Chat message copied to clipboard as "${chosen_format}"`+'.');
         window._my_modal_settings["Output Format"] = old_format;
     });
     chatMessageElement.insertAdjacentElement('afterend', copy_button);
@@ -967,8 +969,8 @@ window._my_custom_methods.createMutationObserver = function createMutationObserv
     /* Configure the observer */;
     const config = {
     attributes: true,
-    childList: false,
-    subtree: false,
+    childList: true,
+    subtree: true,
     characterData: false
     };
 
@@ -1079,11 +1081,11 @@ window._my_custom_menu.items = [
     
 ];
 if (addMenu == true) {
-    window._my_custom_methods.mutation_runner = (()=>{
-        var menu_check = window._my_custom_methods.getMenu()
-        if (document.querySelector('[id="teams_copy_button"]') === null) window._my_custom_methods.addCopyButtonAll();
+    window._my_custom_methods.mutation_runner = (async ()=>{
+        window._my_custom_methods.addCopyButtonAll();
+        var menu_check = window._my_custom_methods.getMenu();
         if (!(menu_check.dropdown && menu_check.modal)) {
-            var items = (()=>{return window._my_custom_menu.items})()
+            var items = (()=>{return window._my_custom_menu.items})();
             window._my_custom_methods.addMenu_func(items);
         };
     });
